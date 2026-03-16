@@ -39,3 +39,6 @@
 
 # debug information files
 *.dwo
+
+# This points to the absolute path containing your local installation of vcpkg
+CMakeUserPresets.json
