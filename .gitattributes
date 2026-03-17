@@ -1,0 +1,2 @@
+# Force all files to use LF on checkout
+* text eol=lf
