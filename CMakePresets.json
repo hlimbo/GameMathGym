@@ -5,8 +5,11 @@
       "name": "vcpkg",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
+      "architecture": "x64",
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_CXX_STANDARD": "11",
+        "CMAKE_C_STANDARD": "90"
       }
     }
   ]
