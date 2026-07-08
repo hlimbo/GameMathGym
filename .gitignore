@@ -45,3 +45,6 @@ CMakeUserPresets.json
 
 # CMake Ignores
 build
+
+# imgui local config file
+imgui.ini

@@ -10,6 +10,7 @@
 * vcpkg is a C++ package manager that allows you to install 3rd party libraries for your C++ project
 * Follow the steps outlined in the link below to install vcpkg:
 * https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-powershell
+* **NOTE:** installation is via manifest mode through the `vcpkg.json` file
 
 # How to let CMake know where your vcpkg installation is located?
 * create a `CMakeUserPresets.json` file in the root of this project

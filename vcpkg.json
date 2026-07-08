@@ -2,6 +2,23 @@
   "name": "game-math-gym",
   "version": "0.1.0",
   "dependencies": [
-    "sdl3"
+    "sdl3",
+    {
+      "name": "imgui",
+      "features": [
+        "sdl3-binding",
+        "opengl3-binding"
+      ]
+    }
+  ],
+  "overrides": [
+    {
+      "name": "sdl3",
+      "version": "3.4.2"
+    },
+    {
+      "name": "imgui",
+      "version": "1.92.8"
+    }
   ]
 }

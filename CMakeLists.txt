@@ -10,8 +10,13 @@ message(STATUS "Is using MSVC? ${MSVC}")
 
 # https://github.com/libsdl-org/SDL/releases/tag/release-3.4.2
 find_package(SDL3 3.4.2 REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(OpenGL REQUIRED) # will locate OpenGL installed on your system's operating system
 
 message("Is SDL3 package found? ${SDL3_FOUND}")
+message("Is imgui package found? ${imgui_FOUND}")
+message("SDL3 version ${SDL3_VERSION}")
+message("imgui version ${imgui_VERSION}")
 
 add_executable(${PROJECT_NAME})
 target_sources(
@@ -25,4 +30,6 @@ target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE
     SDL3::SDL3
+    OpenGL::GL
+    imgui::imgui
 )
