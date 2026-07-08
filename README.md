@@ -31,6 +31,12 @@
 }
 ```
 
+How to build project using cmake?
+```powershell
+# this builds the artifacts in the build folder and --clean-first command deletes previously built object files, libraries, and executables before starting a new build
+cmake --build build --clean-first
+```
+
 Powershell commands usage example for a hello world app
 ```bash
 # generates a vcpkg.json file containing the dependencies installed

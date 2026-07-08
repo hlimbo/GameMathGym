@@ -12,3 +12,17 @@ message(STATUS "Is using MSVC? ${MSVC}")
 find_package(SDL3 3.4.2 REQUIRED)
 
 message("Is SDL3 package found? ${SDL3_FOUND}")
+
+add_executable(${PROJECT_NAME})
+target_sources(
+  ${PROJECT_NAME}
+  PRIVATE
+    main.cpp
+)
+
+# this implicitly passes include paths and library paths for the game application
+target_link_libraries(
+  ${PROJECT_NAME}
+  PRIVATE
+    SDL3::SDL3
+)
