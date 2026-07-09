@@ -33,3 +33,13 @@ target_link_libraries(
     OpenGL::GL
     imgui::imgui
 )
+
+# web builds -- to generate an html file
+if(EMSCRIPTEN)
+  set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+
+  target_link_options(${PROJECT_NAME} PRIVATE
+    "-sUSE_GLFW=3" # for using OpenGL later
+  )
+
+endif()
