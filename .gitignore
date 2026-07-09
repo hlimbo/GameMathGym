@@ -48,3 +48,6 @@ build
 
 # imgui local config file
 imgui.ini
+
+# vscode user workspace settings
+.vscode

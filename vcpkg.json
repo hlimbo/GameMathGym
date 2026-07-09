@@ -9,6 +9,14 @@
         "sdl3-binding",
         "opengl3-binding"
       ]
+    },
+    {
+      "name": "glad",
+      "features": [
+        "gl-api-15",
+        "gl-api-21",
+        "gl-api-31"
+      ]
     }
   ],
   "overrides": [
@@ -19,6 +27,10 @@
     {
       "name": "imgui",
       "version": "1.92.8"
+    },
+    {
+      "name": "glad",
+      "version": "0.1.36"
     }
   ]
 }

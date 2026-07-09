@@ -25,7 +25,8 @@
       "name": "desktop-local",
       "inherits": "desktop",
       "environment": {
-        "VCPKG_ROOT": "<absolute-path-to-vcpkg-folder>"
+        "VCPKG_ROOT": "<absolute-path-to-vcpkg-folder>",
+        "MSVC_COMPILER_ROOT": "<absolute-path-to-msvc-2022-compiler-folder>"
       }
     },
     {
@@ -46,8 +47,10 @@
 
 How to build project using cmake?
 ```powershell
+# You must use the Developer Powershell (VS 2022) in order to run the desktop build successfully.
+# To obtain the shell, you need to install Visual Studio 2022 Community edition.
 # Configures using desktop preset
-cmake --preset desktop
+cmake --preset desktop-local
 
 # Builds using desktop preset
 cmake --build --preset desktop-build --clean-first

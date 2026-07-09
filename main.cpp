@@ -1,3 +1,4 @@
+#include <glad/glad.h>
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_opengl3.h>
@@ -70,8 +71,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   float mainScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
   SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY; 
   win = SDL_CreateWindow(WINDOW_NAME, (int)(WIDTH * mainScale), (int)(HEIGHT * mainScale), windowFlags);
+  if (win == NULL) {
+    return SDL_Fail();
+  }
 
   glContext = SDL_GL_CreateContext(win);
+  if (glContext == NULL) {
+    return SDL_Fail();
+  }
 
   SDL_GL_MakeCurrent(win, glContext);
   SDL_GL_SetSwapInterval(1); // enable vsync
@@ -89,6 +96,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   ImGui_ImplSDL3_InitForOpenGL(win, glContext);
   ImGui_ImplOpenGL3_Init();
 
+  // Setup Glad Library -- load up function pointers into memory by retrieving their memory addresses (this is required otherwise program crashes as the program will attempt to access nullptr funnction pointers from the glad library)
+  if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+    return SDL_Fail();
+  }
+
+  /* Verify the hardware (e.g. GPU) that OpenGL will be using. Differs greatly between devices. */
+  {
+    std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+  }
+
   std::cout << "starting up SDL3 game window!" << std::endl;
 
   return SDL_APP_CONTINUE;
@@ -99,6 +119,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
   ImGui_ImplSDL3_ProcessEvent(event);
 
   if (event->type == SDL_EVENT_QUIT) {
+    std::cout << "quitting app" << std::endl;
     return SDL_APP_SUCCESS;
   }
 
