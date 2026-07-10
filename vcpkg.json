@@ -15,7 +15,8 @@
       "features": [
         "gl-api-15",
         "gl-api-21",
-        "gl-api-31"
+        "gl-api-31",
+        "gl-api-33"
       ]
     }
   ],

@@ -36,13 +36,32 @@ target_link_libraries(
     imgui::imgui
 )
 
+add_executable("DrawTriangle")
+target_sources(
+  "DrawTriangle"
+  PRIVATE
+    draw_triangle.cpp
+)
+
+target_link_libraries(
+  "DrawTriangle"
+    OpenGL::GL
+    glad::glad
+    SDL3::SDL3
+)
+
 # web builds -- to generate an html file
 if(EMSCRIPTEN)
   set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+  set_target_properties("DrawTriangle" PROPERTIES SUFFIX ".html")
 
-  target_link_options(${PROJECT_NAME} PRIVATE
-    "-sUSE_GLFW=3" # for using OpenGL later
-  )
+  # Target WebGL 2 for OpenGL 3.3 Core features support
+  target_link_options(${PROJECT_NAME} PRIVATE "-sMAX_WEBGL_VERSION=2")
+  target_link_options("DrawTriangle" PRIVATE "-sMAX_WEBGL_VERSION=2")
+
+  # Tell Emscripten to embed the "shaders" folder into virtual file system relative to where CMakeLists.txt is located
+  # See: https://emscripten.org/docs/porting/files/packaging_files.html#modifying-file-locations-in-the-virtual-file-system
+  target_link_options("DrawTriangle" PRIVATE "--embed-file" "${CMAKE_CURRENT_SOURCE_DIR}/shaders@/shaders")
 
 endif()
 

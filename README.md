@@ -52,6 +52,7 @@ How to build project using cmake?
 # Configures using desktop preset
 cmake --preset desktop-local
 
+# You must use Vanilla Powershell (without the VS 2022 dependencies) as this build will use the Clang Compiler and not the MSVC compiler to compile the webgl project
 # Builds using desktop preset
 cmake --build --preset desktop-build --clean-first
 
