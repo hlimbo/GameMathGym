@@ -11,6 +11,7 @@ find_package(glad 0.1.36 REQUIRED)
 # https://github.com/libsdl-org/SDL/releases/tag/release-3.4.2
 find_package(SDL3 3.4.2 REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
 
 message(STATUS "Is SDL3 package found? ${SDL3_FOUND}")
 message(STATUS "Is imgui package found? ${imgui_FOUND}")
@@ -19,6 +20,7 @@ message(STATUS "OpenGL Version ${OpenGL_VERSION}")
 message(STATUS "glad Version ${glad_VERSION}")
 message(STATUS "SDL3 version ${SDL3_VERSION}")
 message(STATUS "imgui version ${imgui_VERSION}")
+message(STATUS "assimp version ${assimp_VERSION}")
 
 add_executable(${PROJECT_NAME})
 target_sources(
@@ -30,6 +32,7 @@ target_sources(
 # this implicitly passes include paths and library paths for the game application
 target_link_libraries(
   ${PROJECT_NAME}
+  PRIVATE
     OpenGL::GL  
     glad::glad
     SDL3::SDL3
@@ -45,9 +48,26 @@ target_sources(
 
 target_link_libraries(
   "DrawTriangle"
+  PRIVATE
     OpenGL::GL
     glad::glad
     SDL3::SDL3
+)
+
+add_executable("3DModelDemo")
+target_sources(
+  "3DModelDemo"
+  PRIVATE
+    3d_model_demo.cpp
+)
+
+target_link_libraries(
+  "3DModelDemo"
+  PRIVATE
+    OpenGL::GL
+    glad::glad
+    SDL3::SDL3
+    assimp::assimp
 )
 
 # web builds -- to generate an html file

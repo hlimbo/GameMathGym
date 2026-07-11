@@ -2,7 +2,9 @@
   "name": "game-math-gym",
   "version": "0.1.0",
   "dependencies": [
-    "sdl3",
+    {
+      "name": "sdl3"
+    },
     {
       "name": "imgui",
       "features": [
@@ -18,6 +20,9 @@
         "gl-api-31",
         "gl-api-33"
       ]
+    },
+    {
+      "name": "assimp"
     }
   ],
   "overrides": [
@@ -32,6 +37,10 @@
     {
       "name": "glad",
       "version": "0.1.36"
+    },
+    {
+      "name": "assimp",
+      "version": "6.0.4"
     }
   ]
 }

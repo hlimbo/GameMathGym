@@ -9,9 +9,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 #include <iostream>
 
-const char* WINDOW_NAME = "Draw Triangle Demo";
+const char* WINDOW_NAME = "3D Model Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
 const int WIDTH = 1280;
@@ -71,6 +75,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     std::cout << "Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
   }
 
+  // TODO: figure out how to translate the scene loaded as a 3d model to be rendered on screen
+  Assimp::Importer importer;
+  const std::string filePath("3d_models/Raiden/Raiden.obj");
+  const aiScene* scene = importer.ReadFile(filePath, aiProcess_Triangulate | aiProcess_FlipUVs);
+
   return SDL_APP_CONTINUE;
 }
 
@@ -84,6 +93,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
+
+  glClearColor(0.1f, 0.25f, 0.25f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+  SDL_GL_SwapWindow(win);
+
   return SDL_APP_CONTINUE;
 }
 
