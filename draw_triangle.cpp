@@ -234,6 +234,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   glUseProgram(shaderProgram);
   glBindVertexArray(VAO);
   glDrawArrays(GL_TRIANGLES, 0, 3);
+  glBindVertexArray(0);
 
   SDL_GL_SwapWindow(win);
 
