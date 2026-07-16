@@ -12,15 +12,18 @@ find_package(glad 0.1.36 REQUIRED)
 find_package(SDL3 3.4.2 REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 message(STATUS "Is SDL3 package found? ${SDL3_FOUND}")
 message(STATUS "Is imgui package found? ${imgui_FOUND}")
+message(STATUS "Is stb package found? ${Stb_FOUND}")
 
 message(STATUS "OpenGL Version ${OpenGL_VERSION}")
 message(STATUS "glad Version ${glad_VERSION}")
 message(STATUS "SDL3 version ${SDL3_VERSION}")
 message(STATUS "imgui version ${imgui_VERSION}")
 message(STATUS "assimp version ${assimp_VERSION}")
+message(STATUS "Stb Include directory ${Stb_INCLUDE_DIR}")
 
 add_executable(${PROJECT_NAME})
 target_sources(
@@ -68,6 +71,23 @@ target_link_libraries(
     glad::glad
     SDL3::SDL3
     assimp::assimp
+)
+
+add_executable("TexturesDemo")
+target_sources(
+  "TexturesDemo"
+  PRIVATE
+    textures_demo.cpp
+    "utils/shader_utils.cpp"
+)
+
+target_include_directories("TexturesDemo" PRIVATE ${Stb_INCLUDE_DIR})
+target_link_libraries(
+  "TexturesDemo"
+  PRIVATE
+    OpenGL::GL
+    glad::glad
+    SDL3::SDL3
 )
 
 # web builds -- to generate an html file

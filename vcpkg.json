@@ -2,16 +2,7 @@
   "name": "game-math-gym",
   "version": "0.1.0",
   "dependencies": [
-    {
-      "name": "sdl3"
-    },
-    {
-      "name": "imgui",
-      "features": [
-        "sdl3-binding",
-        "opengl3-binding"
-      ]
-    },
+    "assimp",
     {
       "name": "glad",
       "features": [
@@ -22,8 +13,14 @@
       ]
     },
     {
-      "name": "assimp"
-    }
+      "name": "imgui",
+      "features": [
+        "opengl3-binding",
+        "sdl3-binding"
+      ]
+    },
+    "sdl3",
+    "stb"
   ],
   "overrides": [
     {
