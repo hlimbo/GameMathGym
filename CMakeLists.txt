@@ -62,8 +62,10 @@ target_sources(
   "3DModelDemo"
   PRIVATE
     3d_model_demo.cpp
+    "utils/shader_utils.cpp"
 )
 
+target_include_directories("3DModelDemo" PRIVATE ${Stb_INCLUDE_DIR})
 target_link_libraries(
   "3DModelDemo"
   PRIVATE

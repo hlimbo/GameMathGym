@@ -15,9 +15,24 @@
 #include <assimp/DefaultLogger.hpp>
 #include <assimp/LogStream.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION // this ensures the code can compile and successfully link -- without this, it will generate LNK2019 errors for stbi_load and stbi_image_free functions
+#include <stb_image.h>
+
 #include <iostream>
 #include <vector>
+#include <queue>
 #include <limits>
+#include <assert.h>
+
+#include "utils/shader_utils.h"
+
+#ifdef __EMSCRIPTEN__
+  const char* versionHeader = "#version 300 es\n";
+  const char* glslPrecision = "precision mediump float;\n"; // 16-bit floats supported on web
+#else
+  const char* versionHeader = "#version 330 core\n";
+  const char* glslPrecision = "";
+#endif
 
 const char* WINDOW_NAME = "3D Model Demo";
 SDL_Window* win = NULL;
@@ -27,24 +42,37 @@ const int HEIGHT = 800;
 
 // 3d_models/Raiden/Raiden.obj
 // 3d_models/UltimatePlatformerPack-Dec2021/Character/glTF/Character.gltf
-const std::string filePath("3d_models/UltimatePlatformerPack-Dec2021/Character/glTF/Character.gltf");
+const std::string filePath("3d_models/Raiden/Raiden.obj");
 
 // 3D Model Data
 std::vector<unsigned int> meshIndices; // VBO
 std::vector<unsigned int> vertexIndices; // EBO
-std::vector<aiVector3D> vertices;
+// packed vertex data containing vertex positions, normals, color rgba and texture coords (UVs) values (one per vertex)
+std::vector<float> vertexData;
+// how many data points a single vertex data source contains
+const GLsizei vertexStride = 12;
 
 GLuint VAO; // Vertex Array Object (required to draw the triangles on screen)
 GLuint VBO; // Vertex Buffer Object (contains the vertex data that lives in the GPU)
 GLuint EBO; // Element Buffer Object (this is to reuse vertex data that could belong to multiple triangles)
 
+// Shaders
+GLuint vertexShader;
+GLuint fragShader;
+GLuint shaderProgram;
+const char* vertShaderSrc = "shaders/base_material.vert";
+const char* fragShaderSrc = "shaders/base_material.frag";
+
 // this is used to prevent criss-crossing of the lines rendered for the model
 // when merging multiple meshes into 1 VBO
 unsigned int vertexOffset = 0;
 
+void CollectMeshIndices(const aiScene* scene);
+void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& meshIndices);
 void SetupMesh();
 void DestroyMesh();
 void DrawModel();
+void PrepareMaterial(aiMaterial* material, GLuint shaderProgram);
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
@@ -100,6 +128,40 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     std::cout << "Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
   }
 
+  // Load Shader Program
+  std::string vertCodeStr(ShaderUtils::LoadShaderSource(vertShaderSrc));
+  const char* vertCodeArr[2] = {
+    versionHeader,
+    vertCodeStr.c_str()
+  };
+
+  std::string fragCodeStr(ShaderUtils::LoadShaderSource(fragShaderSrc));
+  const char* fragCodeArr[3] = {
+    versionHeader,
+    glslPrecision,
+    fragCodeStr.c_str()
+  };
+
+  vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  glShaderSource(vertexShader, 2, vertCodeArr, NULL);
+  glCompileShader(vertexShader);
+  ShaderUtils::VerifyShaderCompilationStatus(vertexShader, vertShaderSrc);
+
+  fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(fragShader, 3, fragCodeArr, NULL);
+  glCompileShader(fragShader);
+  ShaderUtils::VerifyShaderCompilationStatus(fragShader, fragShaderSrc);
+
+  shaderProgram = glCreateProgram();
+  glAttachShader(shaderProgram, vertexShader);
+  glAttachShader(shaderProgram, fragShader);
+  glLinkProgram(shaderProgram);
+  ShaderUtils::VerifyShaderProgramLinkStatus(shaderProgram);
+
+  // no longer need shader objects
+  glDeleteShader(vertexShader);
+  glDeleteShader(fragShader);
+
   // Create Assimp Logger so it can forward error and warning messages to stdout
   Assimp::DefaultLogger::create("", Assimp::Logger::VERBOSE);
   bool isLogStreamAttached = Assimp::DefaultLogger::get()->attachStream(
@@ -127,80 +189,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     std::cout << "WARNING::ASSIMP::" << "validation warnings outputted" << std::endl;
   }
 
-  unsigned int rootMeshCount = scene->mRootNode->mNumMeshes;
-  unsigned int childrenCount = scene->mRootNode->mNumChildren;
-  std::cout << "root mesh count: " << rootMeshCount << std::endl;
-  std::cout << "root child count: " << childrenCount << std:: endl;
-
-  for (unsigned int i = 0; i < rootMeshCount; ++i) {
-    unsigned int meshIndex = scene->mRootNode->mMeshes[i];
-    aiMesh* mesh = scene->mMeshes[meshIndex];
-    std::cout << "mesh vertex count: " << mesh->mNumVertices << std::endl;
-    std::cout << "mesh face count: " << mesh->mNumFaces << std::endl;
-  }
-
-  for (unsigned int i = 0; i < childrenCount; ++i) {
-    aiNode* childNode = scene->mRootNode->mChildren[i];
-    std::cout << "child node " << i << " mesh count: " << childNode->mNumMeshes << std::endl;
-
-    for (unsigned int j = 0; j < childNode->mNumMeshes; ++j) {
-      meshIndices.push_back(childNode->mMeshes[j]);
-    }
-  }
-
-  // find min and max bounds for AABB so that I can scale the model down
-  float highest = std::numeric_limits<float>::max();
-  float lowest = std::numeric_limits<float>::lowest();
-  aiVector3D minBounds(highest, highest, highest);
-  aiVector3D maxBounds(lowest, lowest, lowest);
-
-  for (unsigned int meshIndex : meshIndices) {
-    aiMesh* mesh = scene->mMeshes[meshIndex];
-    std::cout << "mesh name: " << mesh->mName.C_Str() << std::endl;
-    std::cout << "mesh vertex count: " << mesh->mNumVertices << std::endl;
-    std::cout << "mesh face count: " << mesh->mNumFaces << std::endl;
-
-    // find min and max bounds so that the model can be scaled 
-    // IMPORTANT: need to have the ai_Process_GenBoundingBoxes turned on when loading the model via importer.ReadFile() function
-    minBounds.x = std::min(minBounds.x, mesh->mAABB.mMin.x);
-    minBounds.y = std::min(minBounds.y, mesh->mAABB.mMin.y);
-    minBounds.z = std::min(minBounds.z, mesh->mAABB.mMin.z);
-    maxBounds.x = std::max(maxBounds.x, mesh->mAABB.mMax.x);
-    maxBounds.y = std::max(maxBounds.y, mesh->mAABB.mMax.y);
-    maxBounds.z = std::max(maxBounds.z, mesh->mAABB.mMax.z);
-
-    for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-      vertices.push_back(mesh->mVertices[i]);
-    }
-
-    for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
-      aiFace face = mesh->mFaces[i];
-      for (unsigned int j = 0; j < face.mNumIndices; ++j) {
-        // IMPORTANT: need to add vertexOffset here as each mesh face index starts at 0
-        // this ensures the mapping to OpenGL contains all unique indices
-        vertexIndices.push_back(face.mIndices[j] + vertexOffset);
-      }
-    }
-    // Apply offset after process the current mesh's vertices
-    vertexOffset += mesh->mNumVertices;
-  }
-
-  // scale the vertices down
-  aiVector3D center = (minBounds + maxBounds) * 0.5f;
-  aiVector3D size = maxBounds - minBounds;
-  float maxDimension = std::max({size.x, size.y, size.z});
-  float scaleFactor = 1.0f / maxDimension; // scale to fit range from -0.5 to 0.5
-  for (unsigned int i = 0; i < vertices.size(); ++i) {
-    // 1. center vertex around origin
-    vertices[i] -= center;
-    // 2. scale each vertex down proportionally
-    vertices[i] *= scaleFactor;
-  }
-
-
   // used to debug and render faces as lines instead of filling it in the face with color
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+  CollectMeshIndices(scene);
+  CollectVertexData(scene, meshIndices);
   SetupMesh();
 
   return SDL_APP_CONTINUE;
@@ -242,6 +235,170 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
   std::cout << "shutting down SDL3 game app" << std::endl;
 }
 
+void CollectMeshIndices(const aiScene* scene) {
+  unsigned int rootMeshCount = scene->mRootNode->mNumMeshes;
+  unsigned int rootChildrenCount = scene->mRootNode->mNumChildren;
+  std::cout << "root mesh count: " << rootMeshCount << std::endl;
+  std::cout << "root child count: " << rootChildrenCount << std:: endl;
+
+  std::queue<aiNode*> nodes;
+  nodes.push(scene->mRootNode);
+
+  /* 
+    Collect Mesh Indices using BFS
+    Assumption: There is no cyclic dependency for the 3D Model nodes
+  */
+  while(!nodes.empty()) {
+    aiNode* node = nodes.front();
+    nodes.pop();
+
+    unsigned int meshCount = node->mNumMeshes;
+    unsigned int childrenCount = node->mNumChildren;
+    std::cout << "mesh count: " << meshCount << std::endl;
+    std::cout << "child count: " << childrenCount << std::endl;
+    for (unsigned int i = 0; i < meshCount; ++i) {
+      unsigned int meshIndex = node->mMeshes[i];
+      meshIndices.push_back(meshIndex);
+    }
+
+    for (unsigned int i = 0; i < childrenCount; ++i) {
+      aiNode* childNode = node->mChildren[i];
+      nodes.push(childNode);
+    }
+  }
+}
+
+void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& meshIndices) {
+  std::vector<aiVector3D> vertices;
+  std::vector<aiVector3D> normals;
+  std::vector<aiColor4D> colors;
+  std::vector<aiVector2D> textureUVCoords;
+
+  // Default Color and Material Fallbacks if not found on 3D Model
+  aiColor4D baseColor(1.0f, 1.0f, 1.0f, 1.0f);
+  float metallic = 0.0f;
+  float roughness = 0.5f;
+
+  // find min and max bounds for AABB so that I can scale the model down
+  float highest = std::numeric_limits<float>::max();
+  float lowest = std::numeric_limits<float>::lowest();
+  aiVector3D minBounds(highest, highest, highest);
+  aiVector3D maxBounds(lowest, lowest, lowest);
+
+  for (unsigned int meshIndex : meshIndices) {
+    std::cout << "mesh Index: " << meshIndex << std::endl;
+    aiMesh* mesh = scene->mMeshes[meshIndex];
+    // std::cout << "mesh name: " << mesh->mName.C_Str() << std::endl;
+    // std::cout << "mesh vertex count: " << mesh->mNumVertices << std::endl;
+    // std::cout << "mesh face count: " << mesh->mNumFaces << std::endl;
+
+    // find min and max bounds so that the model can be scaled 
+    // IMPORTANT: need to have the ai_Process_GenBoundingBoxes turned on when loading the model via importer.ReadFile() function
+    minBounds.x = std::min(minBounds.x, mesh->mAABB.mMin.x);
+    minBounds.y = std::min(minBounds.y, mesh->mAABB.mMin.y);
+    minBounds.z = std::min(minBounds.z, mesh->mAABB.mMin.z);
+    maxBounds.x = std::max(maxBounds.x, mesh->mAABB.mMax.x);
+    maxBounds.y = std::max(maxBounds.y, mesh->mAABB.mMax.y);
+    maxBounds.z = std::max(maxBounds.z, mesh->mAABB.mMax.z);
+
+    for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
+      vertices.push_back(mesh->mVertices[i]);
+
+      if (mesh->HasNormals()) {
+        normals.push_back(mesh->mNormals[i]);
+      } else {
+        // default normals for flat shading
+        aiVector3D normal(0.0f, 0.0f, 1.0f);
+        normals.push_back(normal);
+      }
+
+      // Load In Base Color Material Settings
+      unsigned int materialIndex = mesh->mMaterialIndex;
+      aiMaterial* material = scene->mMaterials[materialIndex];
+      // AI_MATKEY_BASE_COLOR expands to "$clr.base", 0, 0 as its a preprocessor define value
+      // AI_MATKEY_COLOR_DIFFUSE is similar which means that aiMaterial::Get accepts 4 arguments rather than 2
+      if(material->Get(AI_MATKEY_BASE_COLOR, baseColor) != AI_SUCCESS) {
+        material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor);
+      }
+
+      colors.push_back(baseColor);
+
+      // Assumption: models will always have their textures set in the 0th index e.g. TEXTURE0 (Only use textures from the 0th index if available)
+      if (mesh->mTextureCoords[0]) {
+        aiVector2D textureCoords(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+        textureUVCoords.push_back(textureCoords);
+      } else {
+        aiVector2D textureCoords(0.0f, 0.0f);
+        textureUVCoords.push_back(textureCoords);
+      }
+    }
+
+    for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
+      aiFace face = mesh->mFaces[i];
+      for (unsigned int j = 0; j < face.mNumIndices; ++j) {
+        // IMPORTANT: need to add vertexOffset here as each mesh face index starts at 0
+        // this ensures OpenGL can draw the triangles in the correct order
+        vertexIndices.push_back(face.mIndices[j] + vertexOffset);
+      }
+    }
+    
+    // Load in Texture Data
+    unsigned int matIndex = mesh->mMaterialIndex;
+    aiMaterial* material = scene->mMaterials[matIndex];
+    unsigned int textureDiffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
+    std::cout << "texture diffuse count: " << textureDiffuseCount << std::endl;
+    
+    // TODO: Go back here and figure out how to:
+    // 1. Save Texture Strings from assimp into vector
+    // 2. Load Texture Images in using stbi_load()
+    // 3. generate and bind textures using OpenGL
+    // 4. obtain textureIds for rendering in draw call
+    // 5. in the draw call, I'll need to set the active texture based on GL_TEXTURE0 as base offset glActiveTexture
+    // 6. in the draw call, I'll need to set sampler to correct texture unit glUniform1i
+    // 7. bind texture to the correct textureId glBindTexture
+    for (unsigned int i = 0; i < textureDiffuseCount; ++i) {
+      aiString textureStr;
+      material->GetTexture(aiTextureType_DIFFUSE, i, &textureStr);
+      std::cout << "texture name: " << textureStr.C_Str() << std:: endl;
+      // textureStrs.push_back(textureStr);
+    }
+
+    // Apply offset after process the current mesh's vertices
+    vertexOffset += mesh->mNumVertices;
+  }
+
+  // scale the vertices down so that I can view the model within the default screen space coordinates OpenGL uses without implementing a camera
+  aiVector3D center = (minBounds + maxBounds) * 0.5f;
+  aiVector3D size = maxBounds - minBounds;
+  float maxDimension = std::max({size.x, size.y, size.z});
+  float scaleFactor = 1.0f / maxDimension; // scale to fit range from -0.5 to 0.5
+  for (unsigned int i = 0; i < vertices.size(); ++i) {
+    // 1. center vertex around origin
+    vertices[i] -= center;
+    // 2. scale each vertex down proportionally
+    vertices[i] *= scaleFactor;
+  }
+
+  // merge vertex positions, normals, colors, and textureCoords in 1 flat floating point array
+  // For now hardcode the color to RED then come back to this to figure out how to extract the color from the materials per mesh
+  assert(vertices.size() == colors.size());
+  assert(colors.size() == normals.size());
+  assert(normals.size() == textureUVCoords.size());
+
+  for (unsigned int i = 0; i < vertices.size(); ++i) {
+    vertexData.insert(
+      vertexData.end(),
+      {
+        vertices[i].x, vertices[i].y, vertices[i].z,        // position
+        normals[i].x, normals[i].y, normals[i].z,           // normal
+        colors[i].r, colors[i].g, colors[i].b, colors[i].a, // color
+        textureUVCoords[i].x, textureUVCoords[i].y          // texture coords
+      } 
+    );
+  }
+
+}
+
 void SetupMesh() {
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);
@@ -250,16 +407,43 @@ void SetupMesh() {
   glBindVertexArray(VAO);
   // this binds a buffer array to the VBO
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  // Approach 1: Pack all the data containing the vertex position, normals, colors rgba in 1 float array data structure
+  // Using 1 VAO/VBO in this case to draw the entire 3D Model is called buffer batching -- this combines all meshes on 3d model into 1 draw call on GPU
+  // by storing vertex position, normals, texture coords, colors rgba in a tightly packed 1D float array data structure
+  // Watch The Cherno: https://www.youtube.com/watch?v=Fz1VySWaad8&t=60s
+  /*
+        vertex position       normal (xyz)    color rgba
+      [ 0.0,  1.0, 2.0      0.0, 1.0, 0.0   0.5, 0.2, 0.25, 1.0 ...... ]
+  */
+
+  assert(vertexData.size() > 0);
+  assert(vertexIndices.size() > 0);
+
   // this allocates data and stores data in the initialized memory (I assume this is on the GPU)
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(aiVector3D), &vertices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), &vertexData[0], GL_STATIC_DRAW);
+
+  // set vertex attribute pointers -- lets OpenGL know how many variables an aiVector3D have at a time
+  // this maps to vertexPosition (location = 0) in the vertex shader layout program
+  glEnableVertexAttribArray(0); 
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride * sizeof(float), (void*)0);
+
+  // this maps vertexNormal (location = 1) in the vertex shader layout program
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertexStride * sizeof(float), (void*)(sizeof(float) * 3));
+
+  // this maps color rgba (location = 2) in the vertex shader layout program
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, vertexStride * sizeof(float), (void*)(sizeof(float) * 6));
+
+  // this maps texture coords (UVs) (location = 3) in the vertex shader layout program
+  glEnableVertexAttribArray(3);
+  glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, vertexStride * sizeof(float), (void*)(sizeof(float) * 10));
 
   // this binds buffer array to the EBO (EBO used to determine which vertices to reuse when rendering triangles or faces)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexIndices.size() * sizeof(unsigned int), &vertexIndices[0], GL_STATIC_DRAW);
-
-  // set vertex attribute pointers -- lets OpenGL know how many variables an aiVector3D have at a time
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(aiVector3D), (void*)0);
+  
   //unbind Vertex Array Object -- why? in OpenGL you can only bind one VAO to the GPU at a time
   glBindVertexArray(0);
 }
@@ -281,8 +465,44 @@ void DestroyMesh() {
 
 void DrawModel() {
   // draw mesh
+  glUseProgram(shaderProgram);
   glBindVertexArray(VAO);
   glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(vertexIndices.size()), GL_UNSIGNED_INT, 0);
   //unbind vertex array object
   glBindVertexArray(0);
+}
+
+// This can only called on the render loop as I'd need to set the color properties for all the vertices and fragments via shaders
+void PrepareMaterial(aiMaterial* material, GLuint shaderProgram) {
+  // Default Fallbacks
+  aiColor4D baseColor(1.0f, 1.0f, 1.0f, 1.0f);
+  float metallic = 0.0f;
+  float roughness = 0.5f;
+
+  // Apply fallback colors if they cannot be obtained from the material directly
+  if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) != AI_SUCCESS) {
+    material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor);
+  }
+
+  material->Get(AI_MATKEY_METALLIC_FACTOR, metallic);
+  
+  material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
+
+  // Send the color properties to the fragment shader program for the GPU to process
+  GLint baseColorLoc = glGetUniformLocation(shaderProgram, "u_BaseColor");
+  if (baseColorLoc != -1) {
+    glUniform4f(baseColorLoc, baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+  }
+
+  // Set Metallic (float)
+  GLint metallicLoc = glGetUniformLocation(shaderProgram, "u_Metallic");
+  if (metallicLoc != -1) {
+    glUniform1f(metallicLoc, metallic);
+  }
+
+  // Set Roughness (float)
+  GLint roughnessLoc = glGetUniformLocation(shaderProgram, "u_Roughness");
+  if (roughnessLoc != -1) {
+    glUniform1f(roughnessLoc, roughness);
+  }
 }

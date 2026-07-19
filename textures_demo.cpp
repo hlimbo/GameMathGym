@@ -144,6 +144,9 @@ void DrawRect() {
 }
 
 void LoadImageTexture() {
+  // flip loaded texture on the y-axis (this is so that the texture image isn't upside down when viewing it in the window)
+  stbi_set_flip_vertically_on_load(true);
+  
   data = stbi_load("3d_models/Raiden/Tex_0302_0.png", &width, &height, &nrChannels, 0);
   if (!data) {
     std::cout << "Failed to load texture" << std::endl;
@@ -165,7 +168,7 @@ void LoadImageTexture() {
 
   // 1st - arg - specifies texture target which means it will generate a texture on bound texture object
   // 2nd - specifies mip map level for the texture, leave it at base level 0
-  // 3rd - store texture in RGB format (no alpha)
+  // 3rd - store texture in RGB format (no alpha) (the image file's internal color channel format)
   // 4th - sets width
   // 5th - sets height
   // 6th - always set to 0 due to legacy reasons I don't know
