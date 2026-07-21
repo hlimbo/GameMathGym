@@ -2,6 +2,7 @@ out vec3 FragPos;
 out vec3 Normal;
 out vec4 Color;
 out vec2 TextureCoord;
+out float TextureLayerId;
 
 // this location is locked in when you do the following in a C++ file
 /*
@@ -15,11 +16,13 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
 layout (location = 2) in vec4 aColor;
 layout (location = 3) in vec2 aTextureCoord;
+layout (location = 4) in float aTextureLayerId;
 
 void main() {
   FragPos = aPos;
   Normal = aNorm;
   Color = aColor;
   TextureCoord = aTextureCoord;
+  TextureLayerId = aTextureLayerId;
   gl_Position = vec4(aPos, 1.0);
 }

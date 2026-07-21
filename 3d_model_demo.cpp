@@ -17,9 +17,12 @@
 
 #define STB_IMAGE_IMPLEMENTATION // this ensures the code can compile and successfully link -- without this, it will generate LNK2019 errors for stbi_load and stbi_image_free functions
 #include <stb_image.h>
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include <stb_image_resize2.h>
 
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 #include <queue>
 #include <limits>
 #include <assert.h>
@@ -47,10 +50,21 @@ const std::string filePath("3d_models/Raiden/Raiden.obj");
 // 3D Model Data
 std::vector<unsigned int> meshIndices; // VBO
 std::vector<unsigned int> vertexIndices; // EBO
-// packed vertex data containing vertex positions, normals, color rgba and texture coords (UVs) values (one per vertex)
+/*
+  Packed Vertex Data Containing:
+  1. Vertex Positions
+  2. Normals
+  3. Colors RGBA
+  4. Texture UV Coords
+  5. Texture Layer IDs (for 3D Models that have more than 1 diffuse texture)
+*/
 std::vector<float> vertexData;
 // how many data points a single vertex data source contains
-const GLsizei vertexStride = 12;
+const GLsizei vertexStride = 13;
+// contains filepath names of the image textures if the 3d model has any
+std::vector<aiString> textureStrs;
+std::unordered_map<std::string, int> textureToLayerMap;
+GLuint textureArrayId;
 
 GLuint VAO; // Vertex Array Object (required to draw the triangles on screen)
 GLuint VBO; // Vertex Buffer Object (contains the vertex data that lives in the GPU)
@@ -69,6 +83,7 @@ unsigned int vertexOffset = 0;
 
 void CollectMeshIndices(const aiScene* scene);
 void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& meshIndices);
+void LoadTextures();
 void SetupMesh();
 void DestroyMesh();
 void DrawModel();
@@ -194,6 +209,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
   CollectMeshIndices(scene);
   CollectVertexData(scene, meshIndices);
+  LoadTextures();
   SetupMesh();
 
   return SDL_APP_CONTINUE;
@@ -273,6 +289,8 @@ void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& me
   std::vector<aiVector3D> normals;
   std::vector<aiColor4D> colors;
   std::vector<aiVector2D> textureUVCoords;
+  // used to determine which vertices get which texture
+  std::vector<float> textureLayerIds;
 
   // Default Color and Material Fallbacks if not found on 3D Model
   aiColor4D baseColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -301,6 +319,40 @@ void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& me
     maxBounds.y = std::max(maxBounds.y, mesh->mAABB.mMax.y);
     maxBounds.z = std::max(maxBounds.z, mesh->mAABB.mMax.z);
 
+    // Find Texture Data using Assimp and assign
+    // textureLayerId to a vertex so that it knows which
+    // texture image to use in the 3d model
+    unsigned int matIndex = mesh->mMaterialIndex;
+    aiMaterial* material = scene->mMaterials[matIndex];
+    unsigned int textureDiffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
+    std::cout << "texture diffuse count: " << textureDiffuseCount << std::endl;
+
+    // Default Layer
+    float layerIndex = 0.0f;
+    
+    // Assumption: that there will only be 1 texture diffuse per 1 mesh
+    for (unsigned int i = 0; i < textureDiffuseCount; ++i) {
+      aiString textureStr;
+      if (material->GetTexture(aiTextureType_DIFFUSE, i, &textureStr) == AI_SUCCESS) {
+        std::cout << "texture name: " << textureStr.C_Str() << std:: endl;
+
+        // add unique texture file names here
+        std::string textureName(textureStr.C_Str());
+        bool isTextureNotFound = textureToLayerMap.find(textureName) == textureToLayerMap.end();
+        int layerId = -1;
+        if (isTextureNotFound) {
+          layerId = textureStrs.size();
+          textureToLayerMap[textureName] = layerId;
+          textureStrs.push_back(textureStr);
+        } else {
+          layerId = textureToLayerMap[textureName];
+        }
+
+        assert(layerId != -1);
+        layerIndex = static_cast<float>(layerId);
+      }
+    }
+
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
       vertices.push_back(mesh->mVertices[i]);
 
@@ -322,6 +374,7 @@ void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& me
       }
 
       colors.push_back(baseColor);
+      textureLayerIds.push_back(layerIndex);
 
       // Assumption: models will always have their textures set in the 0th index e.g. TEXTURE0 (Only use textures from the 0th index if available)
       if (mesh->mTextureCoords[0]) {
@@ -342,28 +395,8 @@ void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& me
       }
     }
     
-    // Load in Texture Data
-    unsigned int matIndex = mesh->mMaterialIndex;
-    aiMaterial* material = scene->mMaterials[matIndex];
-    unsigned int textureDiffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
-    std::cout << "texture diffuse count: " << textureDiffuseCount << std::endl;
-    
-    // TODO: Go back here and figure out how to:
-    // 1. Save Texture Strings from assimp into vector
-    // 2. Load Texture Images in using stbi_load()
-    // 3. generate and bind textures using OpenGL
-    // 4. obtain textureIds for rendering in draw call
-    // 5. in the draw call, I'll need to set the active texture based on GL_TEXTURE0 as base offset glActiveTexture
-    // 6. in the draw call, I'll need to set sampler to correct texture unit glUniform1i
-    // 7. bind texture to the correct textureId glBindTexture
-    for (unsigned int i = 0; i < textureDiffuseCount; ++i) {
-      aiString textureStr;
-      material->GetTexture(aiTextureType_DIFFUSE, i, &textureStr);
-      std::cout << "texture name: " << textureStr.C_Str() << std:: endl;
-      // textureStrs.push_back(textureStr);
-    }
-
     // Apply offset after process the current mesh's vertices
+    // Why? to prevent vertices from being rendered in the incorrect order
     vertexOffset += mesh->mNumVertices;
   }
 
@@ -384,6 +417,7 @@ void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& me
   assert(vertices.size() == colors.size());
   assert(colors.size() == normals.size());
   assert(normals.size() == textureUVCoords.size());
+  assert(textureLayerIds.size() == textureUVCoords.size());
 
   for (unsigned int i = 0; i < vertices.size(); ++i) {
     vertexData.insert(
@@ -392,9 +426,92 @@ void CollectVertexData(const aiScene* scene, const std::vector<unsigned int>& me
         vertices[i].x, vertices[i].y, vertices[i].z,        // position
         normals[i].x, normals[i].y, normals[i].z,           // normal
         colors[i].r, colors[i].g, colors[i].b, colors[i].a, // color
-        textureUVCoords[i].x, textureUVCoords[i].y          // texture coords
+        textureUVCoords[i].x, textureUVCoords[i].y,         // texture coords
+        textureLayerIds[i],                                 // texture layer ID
       } 
     );
+  }
+
+}
+
+void LoadTextures() {
+  std::cout << "texture strings count: " << textureStrs.size() << std::endl;
+
+  int maxTextureWidth = 0;
+  int maxTextureHeight = 0;
+
+
+  std::vector<unsigned char*> imageData;
+  std::vector<int> widths;
+  std::vector<int> heights;
+  std::vector<GLenum> colorFormats;
+
+  std::string textureFilePath(filePath.substr(0, filePath.rfind("/")) + "/");
+  for (unsigned int i = 0; i < textureStrs.size(); ++i) {
+    int width, height, nrComponents;
+    GLenum colorFormat;
+    std::string textureFile(textureFilePath + textureStrs[i].C_Str());
+    unsigned char* data = stbi_load(textureFile.c_str(), &width, &height, &nrComponents, 3);
+    if (data) {
+      imageData.push_back(data);
+      widths.push_back(width);
+      heights.push_back(height);
+      maxTextureWidth = std::max(maxTextureWidth, width);
+      maxTextureHeight = std::max(maxTextureHeight, height);
+      if (nrComponents == 1) {
+        colorFormat = GL_RED;
+      } else if (nrComponents == 3) {
+        colorFormat = GL_RGB;
+      } else if (nrComponents == 4) {
+        colorFormat = GL_RGBA;
+      }
+      colorFormats.push_back(colorFormat);
+    }
+  }
+
+  // allocate and declare storage for 2D texture array on GPU
+  glGenTextures(1, &textureArrayId);
+  glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayId);
+
+  // No mipmaps for now
+  glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  // Allocate memory on GPU -- have contiguous array of data
+  // containing textures
+  int layerCount = static_cast<int>(imageData.size());
+  glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB, maxTextureWidth, maxTextureHeight, layerCount, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+  // Load, Resize and Upload each texture slice
+  for (int i = 0;i < layerCount; ++i) {
+    unsigned char* srcImg = imageData[i];
+    
+    // Resize image on CPU to fit the uniform array size
+    int numChannels = 3;
+    std::vector<unsigned char> resizedImg(maxTextureWidth * maxTextureHeight * numChannels);
+
+    // possible image filtering options
+    // STBIR_FILTER_MITCHELL -- the one Unity uses be default
+    // STBIR_FILTER_CATMULLROM
+    stbir_resize(
+      srcImg, widths[i], heights[i], 0,
+      resizedImg.data(), maxTextureWidth, maxTextureHeight, 0,
+      STBIR_RGB,
+      STBIR_TYPE_UINT8,
+      STBIR_EDGE_CLAMP,
+      STBIR_FILTER_POINT_SAMPLE // keeps sharp pixel boundaries
+    );
+
+    // upload slice into layer 'i'
+    glTexSubImage3D(
+      GL_TEXTURE_2D_ARRAY, 0,
+      0, 0, i,
+      maxTextureWidth, maxTextureHeight, 1,
+      GL_RGB, GL_UNSIGNED_BYTE,
+      resizedImg.data()
+    );
+
+    stbi_image_free(srcImg);
   }
 
 }
@@ -411,7 +528,6 @@ void SetupMesh() {
   // Approach 1: Pack all the data containing the vertex position, normals, colors rgba in 1 float array data structure
   // Using 1 VAO/VBO in this case to draw the entire 3D Model is called buffer batching -- this combines all meshes on 3d model into 1 draw call on GPU
   // by storing vertex position, normals, texture coords, colors rgba in a tightly packed 1D float array data structure
-  // Watch The Cherno: https://www.youtube.com/watch?v=Fz1VySWaad8&t=60s
   /*
         vertex position       normal (xyz)    color rgba
       [ 0.0,  1.0, 2.0      0.0, 1.0, 0.0   0.5, 0.2, 0.25, 1.0 ...... ]
@@ -440,6 +556,10 @@ void SetupMesh() {
   glEnableVertexAttribArray(3);
   glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, vertexStride * sizeof(float), (void*)(sizeof(float) * 10));
 
+  // this maps textureLayerId (location = 4) in the vertex shader layout program
+  glEnableVertexAttribArray(4);
+  glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, vertexStride * sizeof(float), (void*)(sizeof(float) * 12));
+
   // this binds buffer array to the EBO (EBO used to determine which vertices to reuse when rendering triangles or faces)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexIndices.size() * sizeof(unsigned int), &vertexIndices[0], GL_STATIC_DRAW);
@@ -464,8 +584,16 @@ void DestroyMesh() {
 }
 
 void DrawModel() {
-  // draw mesh
+  /* DRAW MESH */
+
   glUseProgram(shaderProgram);
+
+  // bind textures
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayId);
+  // set to texture unit 0
+  glUniform1i(glGetUniformLocation(shaderProgram, "uDiffuseArray"), 0);
+
   glBindVertexArray(VAO);
   glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(vertexIndices.size()), GL_UNSIGNED_INT, 0);
   //unbind vertex array object
@@ -494,15 +622,15 @@ void PrepareMaterial(aiMaterial* material, GLuint shaderProgram) {
     glUniform4f(baseColorLoc, baseColor.r, baseColor.g, baseColor.b, baseColor.a);
   }
 
-  // Set Metallic (float)
-  GLint metallicLoc = glGetUniformLocation(shaderProgram, "u_Metallic");
-  if (metallicLoc != -1) {
-    glUniform1f(metallicLoc, metallic);
-  }
+  // // Set Metallic (float)
+  // GLint metallicLoc = glGetUniformLocation(shaderProgram, "u_Metallic");
+  // if (metallicLoc != -1) {
+  //   glUniform1f(metallicLoc, metallic);
+  // }
 
-  // Set Roughness (float)
-  GLint roughnessLoc = glGetUniformLocation(shaderProgram, "u_Roughness");
-  if (roughnessLoc != -1) {
-    glUniform1f(roughnessLoc, roughness);
-  }
+  // // Set Roughness (float)
+  // GLint roughnessLoc = glGetUniformLocation(shaderProgram, "u_Roughness");
+  // if (roughnessLoc != -1) {
+  //   glUniform1f(roughnessLoc, roughness);
+  // }
 }
