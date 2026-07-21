@@ -96,3 +96,11 @@ cd build/web
 # start the python server -- access project http://localhost:8000/GameMathGym.html
 python -m http.server 8000
 ```
+
+How to run unit tests on desktop builds?
+```powershell
+# 1. build the project
+cmake --build --preset desktop-build
+# 2. run the tests -- will output error logs on console if any test fails
+ctest --preset unit-tests-desktop 
+```

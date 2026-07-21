@@ -20,7 +20,8 @@
       ]
     },
     "sdl3",
-    "stb"
+    "stb",
+    "gtest"
   ],
   "overrides": [
     {
@@ -38,6 +39,10 @@
     {
       "name": "assimp",
       "version": "6.0.4"
+    },
+    {
+      "name": "gtest",
+      "version": "1.17.0"
     }
   ]
 }

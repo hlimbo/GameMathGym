@@ -54,3 +54,6 @@ imgui.ini
 
 # 3d models
 3d_models
+
+# GTest unit testing results output logs
+Testing

@@ -14,9 +14,14 @@ find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 
+# Enables testing for current directory and subdirectory -- enables capability to run CTest
+enable_testing()
+find_package(GTest CONFIG REQUIRED)
+
 message(STATUS "Is SDL3 package found? ${SDL3_FOUND}")
 message(STATUS "Is imgui package found? ${imgui_FOUND}")
 message(STATUS "Is stb package found? ${Stb_FOUND}")
+message(STATUS "Is GTest package found? ${GTest_FOUND}")
 
 message(STATUS "OpenGL Version ${OpenGL_VERSION}")
 message(STATUS "glad Version ${glad_VERSION}")
@@ -24,6 +29,7 @@ message(STATUS "SDL3 version ${SDL3_VERSION}")
 message(STATUS "imgui version ${imgui_VERSION}")
 message(STATUS "assimp version ${assimp_VERSION}")
 message(STATUS "Stb Include directory ${Stb_INCLUDE_DIR}")
+message(STATUS "GTest Version: ${GTest_VERSION}")
 
 add_executable(${PROJECT_NAME})
 target_sources(
@@ -91,6 +97,29 @@ target_link_libraries(
     glad::glad
     SDL3::SDL3
 )
+
+
+add_executable("GTestSample")
+target_sources(
+  "GTestSample"
+  PRIVATE
+    gtest_sample.cpp
+)
+target_link_libraries(
+  "GTestSample" 
+  PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+)
+
+# Registers a suite of tests to run
+add_test(AllTestsInGTestSample "GTestSample")
+
+# Discovers and finds all tests suites in the target GTestSample
+# include(GoogleTest)
+# gtest_discover_tests("GTestSample")
 
 # web builds -- to generate an html file
 if(EMSCRIPTEN)

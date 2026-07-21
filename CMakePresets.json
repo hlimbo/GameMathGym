@@ -17,7 +17,7 @@
       },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_CXX_STANDARD": "11",
+        "CMAKE_CXX_STANDARD": "17",
         "CMAKE_C_STANDARD": "99",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "$env{MSVC_COMPILER_ROOT}/cl.exe",
@@ -33,7 +33,7 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
-        "CMAKE_CXX_STANDARD": "11",
+        "CMAKE_CXX_STANDARD": "17",
         "CMAKE_C_STANDARD": "99",
         "VCPKG_TARGET_TRIPLET": "wasm32-emscripten"
       }
@@ -47,6 +47,18 @@
     {
       "name": "web-build",
       "configurePreset": "web"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "unit-tests-desktop",
+      "configurePreset": "desktop",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
     }
   ]
 }
