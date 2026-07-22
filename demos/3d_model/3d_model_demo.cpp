@@ -31,7 +31,7 @@
 
 #ifdef __EMSCRIPTEN__
   const char* versionHeader = "#version 300 es\n";
-  const char* glslPrecision = "precision mediump float;\n"; // 16-bit floats supported on web
+  const char* glslPrecision = "precision mediump float;\nprecision mediump sampler2DArray;\n"; // 16-bit floats supported on web
 #else
   const char* versionHeader = "#version 330 core\n";
   const char* glslPrecision = "";
@@ -466,6 +466,9 @@ void LoadTextures() {
         colorFormat = GL_RGBA;
       }
       colorFormats.push_back(colorFormat);
+    } else {
+      std::cout << "STB failed to load for path: " << textureFile << std::endl;
+      std::cout << "REASON: " << stbi_failure_reason() << std::endl;
     }
   }
 
@@ -477,10 +480,21 @@ void LoadTextures() {
   glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+  glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
   // Allocate memory on GPU -- have contiguous array of data
   // containing textures
   int layerCount = static_cast<int>(imageData.size());
-  glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB, maxTextureWidth, maxTextureHeight, layerCount, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+  std::cout << "layer count: " << layerCount << std::endl;
+  std::cout << "maxTextureHeight: " << maxTextureHeight << std::endl;
+  std::cout << "maxTextureWidth: " << maxTextureWidth << std::endl;
+
+  glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB8, maxTextureWidth, maxTextureHeight, layerCount, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+  // Set unpack alignment to 1 byte (handles non-4-byte aligned widths/RGB images safely)
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   // Load, Resize and Upload each texture slice
   for (int i = 0;i < layerCount; ++i) {

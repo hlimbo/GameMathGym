@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2)
+cmake_minimum_required(VERSION 4.0)
 
 project(GameMathGym)
 
@@ -28,6 +28,7 @@ if (DEMOS_FEATURE_INDEX GREATER -1)
   message(STATUS "assimp version ${assimp_VERSION}")
   message(STATUS "Stb Include directory ${Stb_INCLUDE_DIR}")
 
+  ### Main Project Executable ###
   add_executable(${PROJECT_NAME})
   target_sources(
     ${PROJECT_NAME}
@@ -45,70 +46,19 @@ if (DEMOS_FEATURE_INDEX GREATER -1)
       imgui::imgui
   )
 
-  add_executable("DrawTriangle")
-  target_sources(
-    "DrawTriangle"
-    PRIVATE
-      draw_triangle.cpp
-  )
-
-  target_link_libraries(
-    "DrawTriangle"
-    PRIVATE
-      OpenGL::GL
-      glad::glad
-      SDL3::SDL3
-  )
-
-  add_executable("3DModelDemo")
-  target_sources(
-    "3DModelDemo"
-    PRIVATE
-      3d_model_demo.cpp
-      "utils/shader_utils.cpp"
-  )
-
-  target_include_directories("3DModelDemo" PRIVATE ${Stb_INCLUDE_DIR})
-  target_link_libraries(
-    "3DModelDemo"
-    PRIVATE
-      OpenGL::GL
-      glad::glad
-      SDL3::SDL3
-      assimp::assimp
-  )
-
-  add_executable("TexturesDemo")
-  target_sources(
-    "TexturesDemo"
-    PRIVATE
-      textures_demo.cpp
-      "utils/shader_utils.cpp"
-  )
-
-  target_include_directories("TexturesDemo" PRIVATE ${Stb_INCLUDE_DIR})
-  target_link_libraries(
-    "TexturesDemo"
-    PRIVATE
-      OpenGL::GL
-      glad::glad
-      SDL3::SDL3
-  )
-
   # web builds -- to generate an html file
   if(EMSCRIPTEN)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
-    set_target_properties("DrawTriangle" PROPERTIES SUFFIX ".html")
 
     # Target WebGL 2 for OpenGL 3.3 Core features support
     target_link_options(${PROJECT_NAME} PRIVATE "-sMAX_WEBGL_VERSION=2")
-    target_link_options("DrawTriangle" PRIVATE "-sMAX_WEBGL_VERSION=2")
-
-    # Tell Emscripten to embed the "shaders" folder into virtual file system relative to where CMakeLists.txt is located
-    # See: https://emscripten.org/docs/porting/files/packaging_files.html#modifying-file-locations-in-the-virtual-file-system
-    target_link_options("DrawTriangle" PRIVATE "--embed-file" "${CMAKE_CURRENT_SOURCE_DIR}/shaders@/shaders")
-
   endif()
+
+  ### DEMO Projects to add ###
+  add_subdirectory("demos/3d_model")
+  add_subdirectory("demos/draw_triangle")
+  add_subdirectory("demos/imgui_sample")
+  add_subdirectory("demos/textures")
 endif()
 
 string (FIND "${VCPKG_MANIFEST_FEATURES}" "unit-tests" UNIT_TEST_FEATURE_INDEX)
@@ -119,28 +69,7 @@ if (UNIT_TEST_FEATURE_INDEX GREATER -1)
   message(STATUS "GTest Version: ${GTest_VERSION}")
   message(STATUS "Is GTest package found? ${GTest_FOUND}")
 
-  add_executable("GTestSample")
-  target_sources(
-    "GTestSample"
-    PRIVATE
-      gtest_sample.cpp
-  )
-  target_link_libraries(
-    "GTestSample" 
-    PRIVATE
-      GTest::gtest
-      GTest::gtest_main
-      GTest::gmock
-      GTest::gmock_main
-  )
-
-  # Registers a suite of tests to run
-  add_test(AllTestsInGTestSample "GTestSample")
-
-  # Discovers and finds all tests suites in the target GTestSample
-  # include(GoogleTest)
-  # gtest_discover_tests("GTestSample")
-
+  add_subdirectory("demos/gtest_sample")
 endif()
 
 

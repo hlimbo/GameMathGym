@@ -2,7 +2,7 @@
   "version": 4,
   "cmakeMinimumRequired": {
     "major": 4,
-    "minor": 2
+    "minor": 0
   },
   "configurePresets": [
     {
@@ -52,7 +52,8 @@
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
         "CMAKE_CXX_STANDARD": "17",
         "CMAKE_C_STANDARD": "99",
-        "VCPKG_TARGET_TRIPLET": "wasm32-emscripten"
+        "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
+        "VCPKG_MANIFEST_FEATURES": "demos"
       }
     }
   ],
