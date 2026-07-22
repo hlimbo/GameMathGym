@@ -6,22 +6,39 @@
   },
   "configurePresets": [
     {
-      "name": "desktop",
-      "displayName": "Desktop (Native)",
+      "name": "desktop-base",
       "description": "Build for host operating system using vcpkg",
+      "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/desktop",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_C_STANDARD": "99",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "desktop",
+      "displayName": "Windows Desktop (Native)",
+      "inherits": "desktop-base",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_CXX_STANDARD": "17",
-        "CMAKE_C_STANDARD": "99",
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "$env{MSVC_COMPILER_ROOT}/cl.exe",
-        "CMAKE_CXX_COMPILER": "$env{MSVC_COMPILER_ROOT}/cl.exe"
+        "CMAKE_CXX_COMPILER": "$env{MSVC_COMPILER_ROOT}/cl.exe",
+        "VCPKG_MANIFEST_FEATURES": "demos;unit-tests"
+      }
+    },
+    {
+      "name": "github-actions-ubuntu",
+      "displayName": "Run on GitHub Actions",
+      "inherits": "desktop-base",
+      "cacheVariables": {
+        "CMAKE_MAKE_PROGRAM": "/usr/bin/ninja",
+        "VCPKG_MANIFEST_FEATURES": "unit-tests"
       }
     },
     {
@@ -47,18 +64,32 @@
     {
       "name": "web-build",
       "configurePreset": "web"
+    },
+    {
+      "name": "github-actions-ubuntu-build",
+      "configurePreset": "github-actions-ubuntu"
     }
   ],
   "testPresets": [
     {
-      "name": "unit-tests-desktop",
-      "configurePreset": "desktop",
+      "name": "tests-preset-base",
+      "hidden": true,
       "output": {
         "outputOnFailure": true
       },
       "execution": {
         "noTestsAction": "error"
       }
+    },
+    {
+      "name": "unit-tests-desktop",
+      "configurePreset": "desktop",
+      "inherits": "tests-preset-base"
+    },
+    {
+      "name": "unit-tests-github-actions",
+      "configurePreset": "github-actions-ubuntu",
+      "inherits": "tests-preset-base"
     }
   ]
 }

@@ -104,3 +104,12 @@ cmake --build --preset desktop-build
 # 2. run the tests -- will output error logs on console if any test fails
 ctest --preset unit-tests-desktop 
 ```
+
+How to test github actions locally?
+* install nektos/act by visiting their github page for installation instructions
+* install docker desktop on windows
+```powershell
+# This will simulate a manual deployment as if it was running on github actions except it will run in a contained docker image called catthehacker/ubuntu:act-24.04
+# I would use 26.04 but it doesn't exist yet for this package (https://nektosact.com/usage/runners.html)
+act workflow_dispatch -P ubuntu-24.04=catthehacker/ubuntu:act-24.04
+```

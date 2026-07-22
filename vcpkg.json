@@ -1,28 +1,37 @@
 {
   "name": "game-math-gym",
   "version": "0.1.0",
-  "dependencies": [
-    "assimp",
-    {
-      "name": "glad",
-      "features": [
-        "gl-api-15",
-        "gl-api-21",
-        "gl-api-31",
-        "gl-api-33"
+  "dependencies": [],
+  "features": {
+    "demos": {
+      "description": "Demos for windowed applications",
+      "dependencies": [
+        "assimp",
+        {
+          "name": "glad",
+          "features": [
+            "gl-api-15",
+            "gl-api-21",
+            "gl-api-31",
+            "gl-api-33"
+          ]
+        },
+        {
+          "name": "imgui",
+          "features": [
+            "opengl3-binding",
+            "sdl3-binding"
+          ]
+        },
+        "sdl3",
+        "stb"
       ]
     },
-    {
-      "name": "imgui",
-      "features": [
-        "opengl3-binding",
-        "sdl3-binding"
-      ]
-    },
-    "sdl3",
-    "stb",
-    "gtest"
-  ],
+    "unit-tests": {
+      "description": "Used for Unit Tests (mostly for CI/CD pipeline)",
+      "dependencies": ["gtest"]
+    }
+  },
   "overrides": [
     {
       "name": "sdl3",
