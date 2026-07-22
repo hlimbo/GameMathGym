@@ -13,6 +13,8 @@ jobs:
     env:
       # set this flag to true when locally testing a dry-run of this github action workflow using nektos/act only
       ACT: false
+      # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#environment-variables
+      VCPKG_INSTALLATION_ROOT: "/usr/local/share/vcpkg"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -66,7 +68,10 @@ jobs:
         env:
           # remap vcpkg root directory as github actions runner has it installed in a different environment variable: https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#environment-variables
           VCPKG_ROOT: ${{ env.VCPKG_INSTALLATION_ROOT }}
-        run: cmake --preset github-actions-ubuntu
+        run: |
+          echo "VCPKG ROOT? ${VCPKG_ROOT}"
+          echo "VCPKG_INSTALLATION_ROOT? ${VCPKG_INSTALLATION_ROOT}"
+          cmake --preset github-actions-ubuntu
       
       - name: CMake build
         run: cmake --build --preset github-actions-ubuntu-build
