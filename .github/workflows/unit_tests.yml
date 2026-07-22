@@ -17,25 +17,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
       
-      - name: Remove CMake 3
+      - name: Install CMake 4 from Official GitHub Release
         run: |
-          if dpkg -l | grep -q "^ii cmake"; then
-            echo "Found Old Version of CMake Installed via APT. Uninstalling..."
-            sudo apt-get purge --autoremove -y cmake
-          fi
+          # 1. Define the exact CMake 4 version
+          CMAKE_VERSION="4.2.0"
 
-      - name: Install CMake 4 by Adding Kitware's GPG sign key and Adding Kitware APT repo for Ubuntu 24.04
-        run: |
-          sudo apt install -y ca-certificates gpg wget
-          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+          # 2. Download the official pre-compiled x86_64 tarball from Kitware's GitHub
+          echo "Downloading CMake $CMAKE_VERSION..."
+          wget -q https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz
 
+          # 3. Extract directly into /usr/local (overwriting default APT binaries cleanly)
+          sudo tar -xzf cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -C /usr/local --strip-components=1
+
+          # 4. Clean up downloaded tarball & verify
+          rm cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz
+          cmake --version
+        
       - name: Install Linux Build Prereqs
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential cmake ninja-build
+            build-essential ninja-build
           cmake --version
+          ninja --version
 
       - name: Install vcpkg
         env:
