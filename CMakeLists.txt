@@ -70,6 +70,7 @@ if (UNIT_TEST_FEATURE_INDEX GREATER -1)
   message(STATUS "Is GTest package found? ${GTest_FOUND}")
 
   add_subdirectory("demos/gtest_sample")
+  add_subdirectory("math_utils")
 endif()
 
 
