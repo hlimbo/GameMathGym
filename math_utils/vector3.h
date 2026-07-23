@@ -32,6 +32,7 @@ namespace MathUtils {
     void normalize();
   };
 
+  Vector3 operator*(float scalar, const Vector3& rhs);
 }
 
 #endif // VECTOR3_H

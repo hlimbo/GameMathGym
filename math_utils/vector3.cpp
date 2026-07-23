@@ -2,7 +2,7 @@
 using namespace MathUtils;
 
 #include <assert.h>
-#include <math.h>
+#include <cmath>
 
 Vector3 Vector3::operator+(const Vector3& rhs) const {
   return Vector3(x+rhs.x,y+rhs.y,z+rhs.z);

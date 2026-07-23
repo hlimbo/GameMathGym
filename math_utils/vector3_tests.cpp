@@ -3,6 +3,8 @@
 #include "vector3.h"
 using namespace MathUtils;
 
+#include <cmath>
+
 TEST(Vector3Tests, Constructors)
 {
   Vector3 uninitialized;
@@ -168,7 +170,7 @@ TEST(Vector3Tests, Magnitude)
 {
   Vector3 a(3.0f, 4.0f, 5.0f);
   float a1 = a.magnitude();
-  EXPECT_FLOAT_EQ(sqrtf(3.0f * 3.0f + 4.0f * 4.0f + 5.0f * 5.0f), a1);
+  EXPECT_FLOAT_EQ(std::sqrtf(3.0f * 3.0f + 4.0f * 4.0f + 5.0f * 5.0f), a1);
 }
 
 TEST(Vector3Tests, Normalize)
