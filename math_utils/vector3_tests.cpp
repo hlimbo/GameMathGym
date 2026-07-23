@@ -170,7 +170,7 @@ TEST(Vector3Tests, Magnitude)
 {
   Vector3 a(3.0f, 4.0f, 5.0f);
   float a1 = a.magnitude();
-  EXPECT_FLOAT_EQ(std::sqrtf(3.0f * 3.0f + 4.0f * 4.0f + 5.0f * 5.0f), a1);
+  EXPECT_FLOAT_EQ(std::sqrt(3.0f * 3.0f + 4.0f * 4.0f + 5.0f * 5.0f), a1);
 }
 
 TEST(Vector3Tests, Normalize)
