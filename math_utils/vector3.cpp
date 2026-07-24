@@ -78,8 +78,3 @@ void Vector3::normalize() {
   float divisor = this->magnitude();
   *this /= divisor;
 }
-
-
-
-
-
