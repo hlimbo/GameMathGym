@@ -103,6 +103,24 @@ Matrix4 MathUtils::makeTranslationMatrix(const Vector3& offset) {
   return Matrix4(MAT4_IDENTITY + translate);
 }
 
+Matrix4 MathUtils::makeScaleMatrix(float scale) {
+  Matrix4 output(MAT4_IDENTITY);
+  output.cells[0] *= scale;
+  output.cells[5] *= scale;
+  output.cells[10] *= scale;
+
+  return output;
+}
+
+Matrix4 MathUtils::makeScaleMatrix(const Vector3& scalars) {
+  Matrix4 output(MAT4_IDENTITY);
+  output.cells[0] *= scalars.x;
+  output.cells[5] *= scalars.y;
+  output.cells[10] *= scalars.z;
+
+  return output;
+}
+
 /* 
   See 5.1.3 3D Rotation about an arbirtrary axis:
   https://gamemath.com/book/matrixtransforms.html
@@ -126,4 +144,28 @@ Matrix4 MathUtils::rotate(const Matrix4& m, const float degreesRadians, const Ve
 
 Vector3 MathUtils::rotate(const Matrix4& m, const Vector3& v) {
   return m * v;
+}
+
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix//orthographic-projection-matrix.html
+Matrix4 MathUtils::createOrthographicMatrix(float l, float r, float b, float t, float n, float f) {
+  assert(r != l);
+  assert(t != b);
+  assert(f != b);
+
+  return Matrix4({
+    2.0f / (r - l), 0.0f, 0.0f, -1.0f * (r + l) / (r - l),
+    0.0f, 2.0f / (t - b), 0.0f, -1.0f * (t + b) / (t - b),
+    0.0f, 0.0f, -2.0f / (f - n), -1.0f * (f + n) / (f - n),
+    0.0f, 0.0f, 0.0f, 1.0f
+  });
+}
+
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix//opengl-perspective-projection-matrix.html
+Matrix4 MathUtils::createPerspectiveMatrix(float l, float r, float b, float t, float n, float f) {
+  return Matrix4({
+    (2.0f * n) / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+    0.0f, (2.0f * n) / (t - b), (t + b) / (t - b), 0.0f,
+    0.0f, 0.0f, -1.0f * (f + n) / (f - n), -1.0f * (2.0f * f * n) / (f - n),
+    0.0f, 0.0f, -1.0f, 0.0f
+  });
 }

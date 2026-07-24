@@ -45,6 +45,18 @@ TEST(Matrix4Tests, ScaleMatrices)
     EXPECT_FLOAT_EQ(mat[i] * 4.0f, mat2[i]);
   }
 
+  Matrix4 scaleMat = MathUtils::makeScaleMatrix(4.0f);
+  EXPECT_FLOAT_EQ(4.0f, scaleMat[0]);
+  EXPECT_FLOAT_EQ(4.0f, scaleMat[5]);
+  EXPECT_FLOAT_EQ(4.0f, scaleMat[10]);
+  EXPECT_FLOAT_EQ(1.0f, scaleMat[15]);
+
+  Matrix4 scaleMat2(MathUtils::makeScaleMatrix(3.0f));
+  EXPECT_FLOAT_EQ(3.0f, scaleMat2[0]);
+  EXPECT_FLOAT_EQ(3.0f, scaleMat2[5]);
+  EXPECT_FLOAT_EQ(3.0f, scaleMat2[10]);
+  EXPECT_FLOAT_EQ(1.0f, scaleMat2[15]);
+
 }
 
 TEST(Matrix4Tests, MatrixAdd)
@@ -262,10 +274,45 @@ TEST(Matrix4Tests, Transpose)
 
 TEST(Matrix4Tests, PerspectiveMatrices)
 {
+  float l = -1.0f;
+  float r = 1.0f;
+  float b = -1.0f;
+  float t = 1.0f;
+  float n = 0.1f;
+  float f = 100.0f;
 
+  Matrix4 expMat({
+    (2.0f * n) / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+    0.0f, (2.0f * n) / (t - b), (t + b) / (t - b), 0.0f,
+    0.0f, 0.0f, -1.0f * (f + n) / (f - n), -1.0f * (2.0f * f * n) / (f - n),
+    0.0f, 0.0f, -1.0f, 0.0f
+  });
+
+  Matrix4 actMat(MathUtils::createPerspectiveMatrix(l, r, b, t, n, f));
+
+  float tolerance = 1e-5f;
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_NEAR(expMat[i], actMat[i], tolerance);
+  }
 }
 
 TEST(Matrix4Tests, OrthographicMatrices)
 {
+  Matrix4 expMat({
+    2.0f / (1.0f - -1.0f), 0.0f, 0.0f, -1.0f * (1.0f + -1.0f) / (1.0f - -1.0f),
+    0.0f, 2.0f / (1.0f - -1.0f), 0.0f, -1.0f * (1.0f + -1.0f) / (1.0f - -1.0f),
+    0.0f, 0.0f, -2.0f / (100.0f - 0.1f), -1 * (100.0f + 0.1f) / (100.0f - 0.1f),
+    0.0f, 0.0f, 0.0f, 1.0f
+  });
 
+  Matrix4 actualMat = MathUtils::createOrthographicMatrix(
+    -1.0f, 1.0f,
+    -1.0f, 1.0f,
+    0.1f, 100.0f
+  );
+
+  float tolerance = 1e-5f;
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_NEAR(expMat[i], actualMat[i], tolerance);
+  }
 }

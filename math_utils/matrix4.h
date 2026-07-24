@@ -77,11 +77,17 @@ namespace MathUtils {
   Matrix4 operator*(const float scalar, const Matrix4& rhs);
 
   Matrix4 makeTranslationMatrix(const Vector3& offset);
+  Matrix4 makeScaleMatrix(float scale);
+  Matrix4 makeScaleMatrix(const Vector3& scalars);
 
   // creates a rotation matrix to multiply other vectors with to rotate the vectors
   Matrix4 rotate(const Matrix4& m, const float degreesRadians, const Vector3& normalizedAxis);
   // returns a vector3 that is rotated by m rotationMatrix
   Vector3 rotate(const Matrix4& m, const Vector3& v);
+
+  // Will be in column major form as OpenGL uses column major form for their computations
+  Matrix4 createOrthographicMatrix(float left, float right, float bottom, float top, float near, float far);
+  Matrix4 createPerspectiveMatrix(float l, float r, float b, float t, float n, float f);
 
   const Matrix4 MAT4_IDENTITY({
       1.0f, 0.0f, 0.0f, 0.0f,
