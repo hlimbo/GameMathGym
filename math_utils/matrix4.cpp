@@ -4,8 +4,6 @@
 #include "matrix4.h"
 #include "vector3.h"
 
-#include <iostream>
-
 using namespace MathUtils;
 
 Matrix4 Matrix4::operator*(const Matrix4& rhs) const {
@@ -112,9 +110,9 @@ Matrix4 MathUtils::makeTranslationMatrix(const Vector3& offset) {
 Matrix4 MathUtils::rotate(const Matrix4& m, const float degreesRadians, const Vector3& normalizedAxis) {
   const Vector3 n(normalizedAxis);
   float d = degreesRadians;
-  float cosT = std::cosf(d);
+  float cosT = (float)std::cos(d);
   float oneMinusCos = 1.0f - cosT;
-  float sinT = std::sinf(d);
+  float sinT = (float)std::sin(d);
 
   Matrix4 rotationMatrix({
     n.x * n.x * oneMinusCos + cosT, n.x * n.y * oneMinusCos + n.z * sinT, n.x * n.z * oneMinusCos - n.y * sinT, 0.0f,
