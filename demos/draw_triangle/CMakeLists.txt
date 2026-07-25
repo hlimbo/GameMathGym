@@ -4,6 +4,14 @@ target_sources(
   ${PROGRAM_NAME}
   PRIVATE
     draw_triangle.cpp
+    "../../math_utils/matrix4.cpp"
+    "../../math_utils/vector3.cpp"
+)
+
+target_include_directories(
+  ${PROGRAM_NAME}
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
 
 target_link_libraries(

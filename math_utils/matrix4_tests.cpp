@@ -100,14 +100,25 @@ TEST(Matrix4Tests, TranslationMatrices)
   Matrix4 transMat = MathUtils::makeTranslationMatrix(Vector3(1.0f, 2.0f, 3.0f));
 
   Matrix4 expMat({
-    1.0f, 0.0f, 0.0f, 1.0f,
-    0.0f, 1.0f, 0.0f, 2.0f,
-    0.0f, 0.0f, 1.0f, 3.0f,
-    0.0f, 0.0f, 0.0f, 1.0f
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    1.0f, 2.0f, 3.0f, 1.0f
   });
 
   for (int i = 0;i < MAT4_SIZE; ++i) {
     EXPECT_FLOAT_EQ(expMat[i], transMat[i]);
+  }
+
+  Matrix4 viewMat(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, -3.0f)));
+  Matrix4 expMat2({
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, -3.0f, 1.0f
+  });
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_FLOAT_EQ(expMat2[i], viewMat[i]);
   }
 }
 
@@ -123,6 +134,8 @@ TEST(Matrix4Tests, RotationMatrices)
     0.0f, -1.0f, 0.0f, 0.0f,
     0.0f, 0.0f, 0.0f, 1.0f
   });
+  // OpenGL column major order is used...
+  expMat.transpose();
 
   const float tolerance = 1e-5f;
   for (int i = 0;i < MAT4_SIZE; ++i) {
@@ -130,8 +143,6 @@ TEST(Matrix4Tests, RotationMatrices)
   }
 
   Vector3 v(0.0f, 0.0f, 1.0f);
-  // NOTE: need to transpose rotateMat in order to maintain right handed coordinates for OpenGL
-  rotatedMat.transpose();
   Vector3 vOutput = MathUtils::rotate(rotatedMat, v);
   Vector3 expVector(0.0f, -1.0f, 0.0f);
   EXPECT_NEAR(vOutput.x, expVector.x, tolerance);
@@ -282,11 +293,14 @@ TEST(Matrix4Tests, PerspectiveMatrices)
   float f = 100.0f;
 
   Matrix4 expMat({
-    (2.0f * n) / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
-    0.0f, (2.0f * n) / (t - b), (t + b) / (t - b), 0.0f,
+    (2.0f * n) / (r - l), 0.0f, -(r + l) / (r - l), 0.0f,
+    0.0f, (2.0f * n) / (t - b), -(t + b) / (t - b), 0.0f,
     0.0f, 0.0f, -1.0f * (f + n) / (f - n), -1.0f * (2.0f * f * n) / (f - n),
     0.0f, 0.0f, -1.0f, 0.0f
   });
+
+  // row major to column major order conversion
+  expMat.transpose();
 
   Matrix4 actMat(MathUtils::createPerspectiveMatrix(l, r, b, t, n, f));
 
@@ -299,10 +313,10 @@ TEST(Matrix4Tests, PerspectiveMatrices)
 TEST(Matrix4Tests, OrthographicMatrices)
 {
   Matrix4 expMat({
-    2.0f / (1.0f - -1.0f), 0.0f, 0.0f, -1.0f * (1.0f + -1.0f) / (1.0f - -1.0f),
-    0.0f, 2.0f / (1.0f - -1.0f), 0.0f, -1.0f * (1.0f + -1.0f) / (1.0f - -1.0f),
-    0.0f, 0.0f, -2.0f / (100.0f - 0.1f), -1 * (100.0f + 0.1f) / (100.0f - 0.1f),
-    0.0f, 0.0f, 0.0f, 1.0f
+    2.0f / (1.0f - -1.0f), 0.0f, 0.0f, 0.0f,
+    0.0f, 2.0f / (1.0f - -1.0f), 0.0f, 0.0f,
+    0.0f, 0.0f, -2.0f / (100.0f - 0.1f), 0.0f,
+    -1.0f * (1.0f + -1.0f) / (1.0f - -1.0f), -1.0f * (1.0f + -1.0f) / (1.0f - -1.0f), -1 * (100.0f + 0.1f) / (100.0f - 0.1f), 1.0f
   });
 
   Matrix4 actualMat = MathUtils::createOrthographicMatrix(

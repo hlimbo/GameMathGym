@@ -94,10 +94,10 @@ Matrix4 Matrix4::operator+(const Matrix4& rhs) const {
 
 Matrix4 MathUtils::makeTranslationMatrix(const Vector3& offset) {
   Matrix4 translate({
-    0.0f, 0.0f, 0.0f, offset.x,
-    0.0f, 0.0f, 0.0f, offset.y,
-    0.0f, 0.0f, 0.0f, offset.z,
-    0.0f, 0.0f, 0.0f, 0.0f
+    0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f,
+    offset.x, offset.y, offset.z, 0.0f
   });
 
   return Matrix4(MAT4_IDENTITY + translate);
@@ -133,10 +133,29 @@ Matrix4 MathUtils::rotate(const Matrix4& m, const float degreesRadians, const Ve
   float sinT = (float)std::sin(d);
 
   Matrix4 rotationMatrix({
-    n.x * n.x * oneMinusCos + cosT, n.x * n.y * oneMinusCos + n.z * sinT, n.x * n.z * oneMinusCos - n.y * sinT, 0.0f,
-    n.x * n.y * oneMinusCos - n.z * sinT, n.y * n.y * oneMinusCos + cosT, n.y * n.z * oneMinusCos + n.x * sinT, 0.0f,
-    n.x * n.z * oneMinusCos + n.y * sinT, n.y * n.z * oneMinusCos - n.x * sinT, n.z * n.z * oneMinusCos + cosT, 0.0f,
-    0.0f, 0.0f, 0.0f, 1.0f,
+    // column 0
+    n.x * n.x * oneMinusCos + cosT, 
+    n.x * n.y * oneMinusCos - n.z * sinT, 
+    n.x * n.z * oneMinusCos + n.y * sinT, 
+    0.0f,
+
+    // column 1
+    n.x * n.y * oneMinusCos + n.z * sinT, 
+    n.y * n.y * oneMinusCos + cosT,
+    n.y * n.z * oneMinusCos - n.x * sinT,
+    0.0f,
+
+    // column 2
+    n.x * n.z * oneMinusCos - n.y * sinT,
+    n.y * n.z * oneMinusCos + n.x * sinT,
+    n.z * n.z * oneMinusCos + cosT,
+    0.0f,
+
+    // column 3
+    0.0f,
+    0.0f,
+    0.0f,
+    1.0f
   });
 
   return m * rotationMatrix;
@@ -147,25 +166,26 @@ Vector3 MathUtils::rotate(const Matrix4& m, const Vector3& v) {
 }
 
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix//orthographic-projection-matrix.html
+// Note: OpenGL only takes in data in column major order!
 Matrix4 MathUtils::createOrthographicMatrix(float l, float r, float b, float t, float n, float f) {
   assert(r != l);
   assert(t != b);
   assert(f != b);
 
   return Matrix4({
-    2.0f / (r - l), 0.0f, 0.0f, -1.0f * (r + l) / (r - l),
-    0.0f, 2.0f / (t - b), 0.0f, -1.0f * (t + b) / (t - b),
-    0.0f, 0.0f, -2.0f / (f - n), -1.0f * (f + n) / (f - n),
-    0.0f, 0.0f, 0.0f, 1.0f
+    2.0f / (r - l), 0.0f, 0.0f, 0.0f, // column 0
+    0.0f, 2.0f / (t - b), 0.0f, 0.0f, // column 1
+    0.0f, 0.0f, -2.0f / (f - n), 0.0f, // column 2
+    -1.0f * (r + l) / (r - l), -1.0f * (t + b) / (t - b), -1.0f * (f + n) / (f - n), 1.0f // column 3
   });
 }
 
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix//opengl-perspective-projection-matrix.html
 Matrix4 MathUtils::createPerspectiveMatrix(float l, float r, float b, float t, float n, float f) {
   return Matrix4({
-    (2.0f * n) / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
-    0.0f, (2.0f * n) / (t - b), (t + b) / (t - b), 0.0f,
-    0.0f, 0.0f, -1.0f * (f + n) / (f - n), -1.0f * (2.0f * f * n) / (f - n),
-    0.0f, 0.0f, -1.0f, 0.0f
+    (2.0f * n) / (r - l), 0.0f, 0.0f, 0.0f, // column 0 (x basis)
+    0.0f, (2.0f * n) / (t - b), 0.0f, 0.0f, // column 1 (y basis)
+    -(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), -1.0f, // column 2 (z basis & frustum shifts)
+    0.0f, 0.0f, -(2.0f * f * n) / (f - n), 0.0f, // column 3 (translation / w mapping... nonzero formula is the Z perspective translation)
   });
 }

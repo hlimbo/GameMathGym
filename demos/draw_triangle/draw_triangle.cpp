@@ -17,6 +17,10 @@
 #include <fstream>
 #include <sstream>
 
+#include "math_utils/matrix4.h"
+#include "math_utils/vector3.h"
+using namespace MathUtils;
+
 const char* WINDOW_NAME = "Draw Triangle Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
@@ -38,6 +42,32 @@ GLuint fragmentShader;
 GLuint shaderProgram;
 // Vertex Array Object (VAO) - this will be used to draw the triangle
 GLuint VAO;
+
+/* Model View Projection Matrices */
+float degrees = -55.0f;
+float radians = degrees * (MathUtils::PI / 180.0f); // rotate triangle about x axis (-55 degrees initial)
+Matrix4 modelMat(MathUtils::MAT4_IDENTITY);//MathUtils::rotate(MathUtils::MAT4_IDENTITY, 
+
+float closeZ = -5.0f; // in opengl things move inverted fashion, this represents going forward which means the object goes further away
+float farZ = -1.0f; // this means the object is getting closer
+float z = -1.0f;
+float zSpeed = 8.0f;
+float zDir = -1.0f;
+Matrix4 viewMat(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, z)));
+
+// timer - to keep track of delta time for the game loop
+Uint64 lastTime = 0;
+
+// float left = -5.0f, right = 5.0f;
+// float bot = -5.0f, top = 5.0f;
+// float near = -50.0f, far = 100.0f; // depth vision test anything outside this range means you don't see the triangle
+// Matrix4 projMat(MathUtils::createOrthographicMatrix(left, right, bot, top, near, far));
+
+float left = -0.5f, right = 0.5f;
+float bot = -0.5f, top = 0.5f;
+float near = 0.1f; // needs to be positive for perspective because it will cause one of the cells in the matrix to either go negative or do a division by zero which isn't supported for perspective projection
+float far = 100.0f; // must be greater than near
+Matrix4 projMat(MathUtils::createPerspectiveMatrix(left, right, bot, top, near, far));
 
 // Determine shader version header based on target platform
 #ifdef __EMSCRIPTEN__
@@ -75,7 +105,7 @@ void verifyShaderCompilationStatus(GLuint shaderHandle,const std::string& shader
   }
 }
 
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {  
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
 
   // Select GL version
@@ -210,6 +240,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // this unbinds the VAO from previous call to glBindVertexArray(VAO)
     glBindVertexArray(0);
+
+    // disable face culling
+    glDisable(GL_CULL_FACE);
   }
 
   return SDL_APP_CONTINUE;
@@ -226,12 +259,47 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
 
+  // code snippet to get delta time so triangle rotates and moves same rate no matter which computer hardware is used...
+  Uint64 currentTime = SDL_GetPerformanceCounter();
+
+  if (lastTime == 0) {
+    lastTime = currentTime;
+  }
+
+  double deltaTime = (double)(currentTime - lastTime) / (double)SDL_GetPerformanceFrequency();
+  lastTime = currentTime;
+
+  // Rotate Triangle about x axis
+  float rotationSpeed = 120.0f;
+  degrees = (degrees + rotationSpeed * deltaTime);
+  //if (degrees > 360.0f) { degrees = 0.0f; }
+  radians = degrees * (MathUtils::PI / 180.0f); // rotate triangle about x axis (-55 degrees initial)
+  modelMat = MathUtils::rotate(MathUtils::MAT4_IDENTITY, radians, Vector3(1.0f, 0.0f, 0.0f));
+
+  // Code Snippet to move triangle back and forth along the z-axis
+  // if (z >= farZ || z <= closeZ) {
+  //   zDir *= -1.0f;
+  // }
+  // z += zDir * zSpeed * (float)deltaTime;
+  // std::cout << "z: " << z << std::endl;
+  // viewMat = MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, z));
+
+
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  // draw the triangle
   glUseProgram(shaderProgram);
+
+  // send model view projection matrices to shader program
+  int modelLoc = glGetUniformLocation(shaderProgram, "model");
+  glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &modelMat.cells[0]);
+  int viewLoc = glGetUniformLocation(shaderProgram, "view");
+  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &viewMat.cells[0]);
+  int projLoc = glGetUniformLocation(shaderProgram, "projection");
+  glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projMat.cells[0]);
+
+  // draw the triangle
   glBindVertexArray(VAO);
   glDrawArrays(GL_TRIANGLES, 0, 3);
   glBindVertexArray(0);

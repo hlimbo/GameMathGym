@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <vector>
 #include <iostream>
+#include <initializer_list>
 
 namespace MathUtils {
   // Forward Declarations
@@ -26,7 +27,7 @@ namespace MathUtils {
       index = col_index * (rowsPerCol) + row_index
   */
   struct Matrix4 {
-    float cells[MAT4_SIZE];
+    float cells[MAT4_SIZE] {};
 
     Matrix4(): cells{
       0.0f, 0.0f, 0.0f, 0.0f,
@@ -46,6 +47,15 @@ namespace MathUtils {
       assert(d.size() == MAT4_SIZE);
       for (int i = 0;i < MAT4_SIZE; ++i) {
         cells[i] = d[i];
+      }
+    }
+
+    constexpr Matrix4(std::initializer_list<float> list) {
+      assert(MAT4_SIZE == list.size());
+      int i = 0;
+      for (float val : list) {
+        cells[i] = val;
+        ++i;
       }
     }
 
@@ -89,7 +99,7 @@ namespace MathUtils {
   Matrix4 createOrthographicMatrix(float left, float right, float bottom, float top, float near, float far);
   Matrix4 createPerspectiveMatrix(float l, float r, float b, float t, float n, float f);
 
-  const Matrix4 MAT4_IDENTITY({
+  constexpr Matrix4 MAT4_IDENTITY({
       1.0f, 0.0f, 0.0f, 0.0f,
       0.0f, 1.0f, 0.0f, 0.0f,
       0.0f, 0.0f, 1.0f, 0.0f,
