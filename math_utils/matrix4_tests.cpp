@@ -293,8 +293,8 @@ TEST(Matrix4Tests, PerspectiveMatrices)
   float f = 100.0f;
 
   Matrix4 expMat({
-    (2.0f * n) / (r - l), 0.0f, -(r + l) / (r - l), 0.0f,
-    0.0f, (2.0f * n) / (t - b), -(t + b) / (t - b), 0.0f,
+    (2.0f * n) / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+    0.0f, (2.0f * n) / (t - b), (t + b) / (t - b), 0.0f,
     0.0f, 0.0f, -1.0f * (f + n) / (f - n), -1.0f * (2.0f * f * n) / (f - n),
     0.0f, 0.0f, -1.0f, 0.0f
   });
@@ -308,6 +308,36 @@ TEST(Matrix4Tests, PerspectiveMatrices)
   for (int i = 0;i < MAT4_SIZE; ++i) {
     EXPECT_NEAR(expMat[i], actMat[i], tolerance);
   }
+
+  float width = 1920.0f;
+  float height = 1080.0f;
+  float aspect = width / height;
+  float fov = 90.0f;
+  float near = 0.1f;
+  float far = 100.0f;
+
+  float degToRad = (MathUtils::PI / 180.0f) * fov;
+  float vertFov = 1.0f / tan(0.5f * degToRad);
+  float horizFov = (1.0f / aspect) * vertFov;
+
+  Matrix4 actMat2 = MathUtils::createPerspectiveMatrix(aspect, fov, near, far);
+  Matrix4 expMat2 = Matrix4({
+    horizFov, 0.0f, 0.0f, 0.0f,
+    0.0f, vertFov, 0.0f, 0.0f,
+    0.0f, 0.0f, -(far+near) / (far-near), -1.0f,
+    0.0f, 0.0f, -2.0f*(far*near) / (far-near), 0.0f
+  });
+
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_NEAR(expMat2[i], actMat2[i], tolerance);
+  }
+
+  /* Assertion Tests */
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(0.0f, fov, near, far), "aspect > 0\\.0f");
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, -5.0f, near, far), "fov >= 0\\.0f && fov < 180\\.0f");
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, 181.0f, near, far), "fov >= 0\\.0f && fov < 180\\.0f");
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, fov, 0.0f, far), "n > 0\\.0f");
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, fov, 5.0f, 1.0f), "f > 0\\.0f && f > n");
 }
 
 TEST(Matrix4Tests, OrthographicMatrices)

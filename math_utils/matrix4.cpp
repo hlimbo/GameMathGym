@@ -180,12 +180,37 @@ Matrix4 MathUtils::createOrthographicMatrix(float l, float r, float b, float t, 
   });
 }
 
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix//opengl-perspective-projection-matrix.html
+// https://www.songho.ca/opengl/gl_projectionmatrix.html
 Matrix4 MathUtils::createPerspectiveMatrix(float l, float r, float b, float t, float n, float f) {
   return Matrix4({
     (2.0f * n) / (r - l), 0.0f, 0.0f, 0.0f, // column 0 (x basis)
     0.0f, (2.0f * n) / (t - b), 0.0f, 0.0f, // column 1 (y basis)
-    -(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), -1.0f, // column 2 (z basis & frustum shifts)
+    (r + l) / (r - l), (t + b) / (t - b), -(f + n) / (f - n), -1.0f, // column 2 (z basis & frustum shifts)
     0.0f, 0.0f, -(2.0f * f * n) / (f - n), 0.0f, // column 3 (translation / w mapping... nonzero formula is the Z perspective translation)
+  });
+}
+
+// https://www.songho.ca/opengl/gl_projectionmatrix.html
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/building-basic-perspective-projection-matrix.html
+// https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_model_view_projection#model_transform
+Matrix4 MathUtils::createPerspectiveMatrix(float aspect, float fov, float n, float f) {
+  assert(fov >= 0.0f && fov < 180.0f);
+  assert(aspect > 0.0f);
+  assert(n > 0.0f);
+  assert(f > 0.0f && f > n);
+  float degToRad = (MathUtils::PI / 180.0f) * fov;
+  float vertFov = 1.0f / tan(0.5f * degToRad);
+  float horizFov = (1.0f / aspect) * (vertFov); 
+  float zDepth1 = -(f+n) / (f-n);
+  float zDepth2 = -2.0f*(f*n) / (f-n);
+  // column 0 (x horizontal FOV)
+  // column 1 (y vertical FOV)
+  // column 2 (used for z-depth and clipping tests)
+  // column 3 (used to preserve original depth information for z)
+  return Matrix4({
+    horizFov,   0.0f,     0.0f,       0.0f, 
+    0.0f,       vertFov,  0.0f,       0.0f,
+    0.0f,       0.0f,     zDepth1,  -1.0f,
+    0.0f,       0.0f,     zDepth2,    0.0f
   });
 }

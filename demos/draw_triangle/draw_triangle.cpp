@@ -63,11 +63,19 @@ Uint64 lastTime = 0;
 // float near = -50.0f, far = 100.0f; // depth vision test anything outside this range means you don't see the triangle
 // Matrix4 projMat(MathUtils::createOrthographicMatrix(left, right, bot, top, near, far));
 
-float left = -0.5f, right = 0.5f;
-float bot = -0.5f, top = 0.5f;
-float near = 0.1f; // needs to be positive for perspective because it will cause one of the cells in the matrix to either go negative or do a division by zero which isn't supported for perspective projection
-float far = 100.0f; // must be greater than near
-Matrix4 projMat(MathUtils::createPerspectiveMatrix(left, right, bot, top, near, far));
+/* Uses left, right, bot, top, near, far parameters*/
+// float left = -0.1f, right = 0.1f;
+// float bot = -0.1f, top = 0.1f;
+// float near = 0.1f; // needs to be positive for perspective because it will cause one of the cells in the matrix to either go negative or do a division by zero which isn't supported for perspective projection
+// float far = 100.0f; // must be greater than near
+// Matrix4 projMat(MathUtils::createPerspectiveMatrix(left, right, bot, top, near, far));
+
+/* Uses aspect ratio, fov, near, and far clipping planes */
+float aspect = (float)(WIDTH) / (HEIGHT);
+float fovDegrees = 90.0f;
+float near = 0.1f;
+float far = 100.0f;
+Matrix4 projMat(MathUtils::createPerspectiveMatrix(aspect, fovDegrees, near, far));
 
 // Determine shader version header based on target platform
 #ifdef __EMSCRIPTEN__
@@ -274,7 +282,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   degrees = (degrees + rotationSpeed * deltaTime);
   //if (degrees > 360.0f) { degrees = 0.0f; }
   radians = degrees * (MathUtils::PI / 180.0f); // rotate triangle about x axis (-55 degrees initial)
-  modelMat = MathUtils::rotate(MathUtils::MAT4_IDENTITY, radians, Vector3(1.0f, 0.0f, 0.0f));
+  Vector3 rotationAxis(0.0f, 1.0f, 0.0f);
+  rotationAxis.normalize();
+  modelMat = MathUtils::rotate(MathUtils::MAT4_IDENTITY, radians, rotationAxis);
 
   // Code Snippet to move triangle back and forth along the z-axis
   // if (z >= farZ || z <= closeZ) {

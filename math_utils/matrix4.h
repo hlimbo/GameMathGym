@@ -97,7 +97,20 @@ namespace MathUtils {
 
   // Will be in column major form as OpenGL uses column major form for their computations
   Matrix4 createOrthographicMatrix(float left, float right, float bottom, float top, float near, float far);
+  
+  /*
+    - supports assymetrical perspective cameras
+  */
   Matrix4 createPerspectiveMatrix(float l, float r, float b, float t, float n, float f);
+  /*
+    - supports symmetrical perspective cameras
+    Parameters:
+    - aspect - aspect ratio = width / height -> used to ensure proportion along x-axis looks visually correct for rectangular screens
+    - fov - vertical field of view - takes in range between [0, 180) degrees. internally converts degrees to radians. Higher values means you can see a wider view whereas lower values means you can see a narrower view.
+    - n - near clipping plane distance
+    - f - far clipping plane distance
+  */
+  Matrix4 createPerspectiveMatrix(float aspect, float fov, float n, float f);
 
   constexpr Matrix4 MAT4_IDENTITY({
       1.0f, 0.0f, 0.0f, 0.0f,
