@@ -19,7 +19,11 @@
 
 #include "math_utils/matrix4.h"
 #include "math_utils/vector3.h"
+#include "camera/camera.h"
+
+using namespace Core;
 using namespace MathUtils;
+
 
 const char* WINDOW_NAME = "Draw Triangle Demo";
 SDL_Window* win = NULL;
@@ -43,39 +47,18 @@ GLuint shaderProgram;
 // Vertex Array Object (VAO) - this will be used to draw the triangle
 GLuint VAO;
 
-/* Model View Projection Matrices */
-float degrees = -55.0f;
-float radians = degrees * (MathUtils::PI / 180.0f); // rotate triangle about x axis (-55 degrees initial)
-Matrix4 modelMat(MathUtils::MAT4_IDENTITY);//MathUtils::rotate(MathUtils::MAT4_IDENTITY, 
-
-float closeZ = -5.0f; // in opengl things move inverted fashion, this represents going forward which means the object goes further away
-float farZ = -1.0f; // this means the object is getting closer
-float z = -1.0f;
-float zSpeed = 8.0f;
-float zDir = -1.0f;
-Matrix4 viewMat(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, z)));
-
 // timer - to keep track of delta time for the game loop
 Uint64 lastTime = 0;
 
-// float left = -5.0f, right = 5.0f;
-// float bot = -5.0f, top = 5.0f;
-// float near = -50.0f, far = 100.0f; // depth vision test anything outside this range means you don't see the triangle
-// Matrix4 projMat(MathUtils::createOrthographicMatrix(left, right, bot, top, near, far));
+/* Model View Projection Matrices */
+float degrees = -55.0f;
+float radians = degrees * (MathUtils::PI / 180.0f); // rotate triangle about x axis (-55 degrees initial)
+Matrix4 modelMat(MathUtils::MAT4_IDENTITY);
 
-/* Uses left, right, bot, top, near, far parameters*/
-// float left = -0.1f, right = 0.1f;
-// float bot = -0.1f, top = 0.1f;
-// float near = 0.1f; // needs to be positive for perspective because it will cause one of the cells in the matrix to either go negative or do a division by zero which isn't supported for perspective projection
-// float far = 100.0f; // must be greater than near
-// Matrix4 projMat(MathUtils::createPerspectiveMatrix(left, right, bot, top, near, far));
-
-/* Uses aspect ratio, fov, near, and far clipping planes */
-float aspect = (float)(WIDTH) / (HEIGHT);
 float fovDegrees = 90.0f;
 float near = 0.1f;
 float far = 100.0f;
-Matrix4 projMat(MathUtils::createPerspectiveMatrix(aspect, fovDegrees, near, far));
+Camera mainCamera((float)WIDTH, (float)HEIGHT, fovDegrees, near, far);
 
 // Determine shader version header based on target platform
 #ifdef __EMSCRIPTEN__
@@ -251,6 +234,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     // disable face culling
     glDisable(GL_CULL_FACE);
+
+    //mainCamera.rotateX(55.0f);
+    mainCamera.setOrthoExtents(-1.0f, 1.0f, -1.0f, 1.0f, near, far);
+    if (mainCamera.cameraMode == Camera::Mode::PERSPECTIVE) {
+      std::cout << "camera is in perspective mode" << std::endl;
+    }
   }
 
   return SDL_APP_CONTINUE;
@@ -265,6 +254,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
   return SDL_APP_CONTINUE;
 }
 
+float zoomFactor = 1.0f;
+float zoomSpeed = 2.0f;
+float rotateSpeed = 60.0f;
+float timeSinceLastSwitch = 0.0f;
 SDL_AppResult SDL_AppIterate(void *appstate) {
 
   // code snippet to get delta time so triangle rotates and moves same rate no matter which computer hardware is used...
@@ -277,23 +270,34 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   double deltaTime = (double)(currentTime - lastTime) / (double)SDL_GetPerformanceFrequency();
   lastTime = currentTime;
 
-  // Rotate Triangle about x axis
-  float rotationSpeed = 120.0f;
-  degrees = (degrees + rotationSpeed * deltaTime);
-  //if (degrees > 360.0f) { degrees = 0.0f; }
-  radians = degrees * (MathUtils::PI / 180.0f); // rotate triangle about x axis (-55 degrees initial)
-  Vector3 rotationAxis(0.0f, 1.0f, 0.0f);
-  rotationAxis.normalize();
-  modelMat = MathUtils::rotate(MathUtils::MAT4_IDENTITY, radians, rotationAxis);
+  // Zoom using camera object instance
+  // float zoomFactor = 0.5f * sin((float)currentTime) + 1.0f;
+  // mainCamera.zoom(zoomFactor);
 
-  // Code Snippet to move triangle back and forth along the z-axis
-  // if (z >= farZ || z <= closeZ) {
-  //   zDir *= -1.0f;
+  // moves objects back and forth along z-axis
+  // float zOffset = 0.5f * sin((float)currentTime);
+  // mainCamera.dolly(zOffset);
+
+  // float xOffset = 0.25f * sin((float)currentTime);
+  // mainCamera.pan(xOffset, 0.0f);
+
+  // Vector3 rotationAxis(0.0f, 1.0f, 0.0f);
+  // mainCamera.rotate(rotationAxis, rotateSpeed * deltaTime);
+
+  // swap between orthographic and perspective projections every few seconds
+  // if (SDL_GetTicks() - timeSinceLastSwitch >= 1000.0f) {
+  //   timeSinceLastSwitch = SDL_GetTicks();
+  //   if (mainCamera.cameraMode == Core::Camera::Mode::ORTHOGRAPHIC) {
+  //     mainCamera.setProjectionMode(Core::Camera::Mode::PERSPECTIVE);
+  //     std::cout << "switch to perspective" << std::endl;
+  //   } else {
+  //     mainCamera.setProjectionMode(Core::Camera::Mode::ORTHOGRAPHIC);
+  //     std:: cout << "switch to orthographic" << std::endl;
+  //   }
   // }
-  // z += zDir * zSpeed * (float)deltaTime;
-  // std::cout << "z: " << z << std::endl;
-  // viewMat = MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, z));
 
+  auto viewMatT = mainCamera.getViewMatrix();
+  auto projMatT = mainCamera.getProjectionMatrix();
 
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -305,9 +309,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   int modelLoc = glGetUniformLocation(shaderProgram, "model");
   glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &modelMat.cells[0]);
   int viewLoc = glGetUniformLocation(shaderProgram, "view");
-  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &viewMat.cells[0]);
+  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &viewMatT.cells[0]);
   int projLoc = glGetUniformLocation(shaderProgram, "projection");
-  glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projMat.cells[0]);
+  glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projMatT.cells[0]);
 
   // draw the triangle
   glBindVertexArray(VAO);

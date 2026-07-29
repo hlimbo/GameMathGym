@@ -6,6 +6,7 @@ target_sources(
     draw_triangle.cpp
     "../../math_utils/matrix4.cpp"
     "../../math_utils/vector3.cpp"
+    "../../camera/camera.cpp"
 )
 
 target_include_directories(

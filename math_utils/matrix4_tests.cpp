@@ -334,8 +334,8 @@ TEST(Matrix4Tests, PerspectiveMatrices)
 
   /* Assertion Tests */
   EXPECT_DEATH(MathUtils::createPerspectiveMatrix(0.0f, fov, near, far), "aspect > 0\\.0f");
-  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, -5.0f, near, far), "fov >= 0\\.0f && fov < 180\\.0f");
-  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, 181.0f, near, far), "fov >= 0\\.0f && fov < 180\\.0f");
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, -5.0f, near, far), "fov > 0\\.0f && fov < 180\\.0f");
+  EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, 181.0f, near, far), "fov > 0\\.0f && fov < 180\\.0f");
   EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, fov, 0.0f, far), "n > 0\\.0f");
   EXPECT_DEATH(MathUtils::createPerspectiveMatrix(aspect, fov, 5.0f, 1.0f), "f > 0\\.0f && f > n");
 }

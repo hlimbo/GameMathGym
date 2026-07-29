@@ -125,9 +125,9 @@ Matrix4 MathUtils::makeScaleMatrix(const Vector3& scalars) {
   See 5.1.3 3D Rotation about an arbirtrary axis:
   https://gamemath.com/book/matrixtransforms.html
 */
-Matrix4 MathUtils::rotate(const Matrix4& m, const float degreesRadians, const Vector3& normalizedAxis) {
+Matrix4 MathUtils::rotate(const Matrix4& m, const float anglesRadians, const Vector3& normalizedAxis) {
   const Vector3 n(normalizedAxis);
-  float d = degreesRadians;
+  float d = anglesRadians;
   float cosT = (float)std::cos(d);
   float oneMinusCos = 1.0f - cosT;
   float sinT = (float)std::sin(d);
@@ -194,7 +194,7 @@ Matrix4 MathUtils::createPerspectiveMatrix(float l, float r, float b, float t, f
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/building-basic-perspective-projection-matrix.html
 // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_model_view_projection#model_transform
 Matrix4 MathUtils::createPerspectiveMatrix(float aspect, float fov, float n, float f) {
-  assert(fov >= 0.0f && fov < 180.0f);
+  assert(fov > 0.0f && fov < 180.0f);
   assert(aspect > 0.0f);
   assert(n > 0.0f);
   assert(f > 0.0f && f > n);
@@ -210,7 +210,7 @@ Matrix4 MathUtils::createPerspectiveMatrix(float aspect, float fov, float n, flo
   return Matrix4({
     horizFov,   0.0f,     0.0f,       0.0f, 
     0.0f,       vertFov,  0.0f,       0.0f,
-    0.0f,       0.0f,     zDepth1,  -1.0f,
+    0.0f,       0.0f,     zDepth1,   -1.0f,
     0.0f,       0.0f,     zDepth2,    0.0f
   });
 }

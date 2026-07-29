@@ -30,6 +30,7 @@ namespace MathUtils {
     // vector square length
     float sqrMagnitude() const;
     void normalize();
+    Vector3 normalized() const;
   };
 
   Vector3 operator*(float scalar, const Vector3& rhs);

@@ -76,5 +76,12 @@ float Vector3::magnitude() const {
 
 void Vector3::normalize() {
   float divisor = this->magnitude();
+  assert(divisor != 0.0f);
   *this /= divisor;
+}
+
+Vector3 Vector3::normalized() const{
+  float divisor = this->magnitude();
+  assert(divisor != 0.0f);
+  return Vector3(*this / divisor);
 }

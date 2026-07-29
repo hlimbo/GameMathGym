@@ -91,7 +91,7 @@ namespace MathUtils {
   Matrix4 makeScaleMatrix(const Vector3& scalars);
 
   // creates a rotation matrix to multiply other vectors with to rotate the vectors
-  Matrix4 rotate(const Matrix4& m, const float degreesRadians, const Vector3& normalizedAxis);
+  Matrix4 rotate(const Matrix4& m, const float anglesRadians, const Vector3& normalizedAxis);
   // returns a vector3 that is rotated by m rotationMatrix
   Vector3 rotate(const Matrix4& m, const Vector3& v);
 
