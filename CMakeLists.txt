@@ -59,6 +59,7 @@ if (DEMOS_FEATURE_INDEX GREATER -1)
   add_subdirectory("demos/draw_triangle")
   add_subdirectory("demos/imgui_sample")
   add_subdirectory("demos/textures")
+  add_subdirectory("demos/gamepad_inputs")
 endif()
 
 string (FIND "${VCPKG_MANIFEST_FEATURES}" "unit-tests" UNIT_TEST_FEATURE_INDEX)
