@@ -360,3 +360,103 @@ TEST(Matrix4Tests, OrthographicMatrices)
     EXPECT_NEAR(expMat[i], actualMat[i], tolerance);
   }
 }
+
+TEST(Matrix4Tests, Determinants)
+{
+  Matrix4 mat({
+    1, 2, 3, 4,
+    3, 2, 5, 1,
+    2, 9, 3, 1,
+    2, 1, 3, 1
+  });
+
+  // plugin matrix into wolframalpha calculator online to get determinant here
+  float expAnswer = 40.0f;
+
+  float actualAnswer = mat.determinant();
+  EXPECT_FLOAT_EQ(expAnswer, actualAnswer);
+}
+
+TEST(Matrix4Tests, Adjugates)
+{
+  Matrix4 mat({
+    1, 2, 3, 4,
+    3, 2, 5, 1,
+    2, 9, 3, 1,
+    2, 1, 3, 1
+  });
+
+  Matrix4 answer({
+    -16, -72, 5, 131,
+    0, 0, 5, -5,
+    8, 56, -5, -83,
+    8, -24, 0, 32
+  });
+
+  Matrix4 actual = mat.adjugate();
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_FLOAT_EQ(answer[i], actual[i]);
+  }
+}
+
+TEST(Matrix4Tests, InverseMatrix)
+{
+  Matrix4 mat({
+    1, 2, 3, 4,
+    3, 2, 5, 1,
+    2, 9, 3, 1,
+    2, 1, 3, 1
+  });
+
+  Matrix4 answer({
+    -0.4, -1.8, 0.125, 3.275,
+    0, 0, 0.125, -0.125,
+    0.2, 1.4, -0.125, -2.075,
+    0.2, -0.6, 0, 0.8
+  });
+
+  Matrix4 actual = mat.calculateInverse();
+  float tolerance =1e-5f;
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_NEAR(answer[i], actual[i], tolerance);
+  }
+
+  Matrix4 invalidMat({
+    0, 0, 0, 0,
+    3, 2, 5, 1,
+    2, 9, 3, 1,
+    2, 1, 3, 1
+  });
+  EXPECT_DEATH(invalidMat.calculateInverse(), "det != 0\\.0f");
+}
+
+TEST(Matrix4Tests, MatrixPerspectiveIntegrationTest)
+{
+  const float tolerance = 1e-5f;
+  const float width = 1280.0f;
+  const float height = 800.0f;
+  float x = width / 4.0f;
+  float y = height / 4.0f;
+  Vector3 ndcCoordinates = MathUtils::convertFromScreenSpaceToNDC(x, y, width, height);
+
+  EXPECT_NEAR(-0.5f, ndcCoordinates.x, tolerance);
+  EXPECT_NEAR(0.5f, ndcCoordinates.y, tolerance);
+
+  float fovDegrees = 90.0f;
+  float aspect = width / height;
+  float near = 0.1f;
+  float far = 1000.0f;
+  Matrix4 projectionMatrix(MathUtils::createPerspectiveMatrix(aspect, fovDegrees, near, far));
+
+  // Note: inverted matrix needs to be transposed before applying the multiplication because it is in row major form rather than column major order! 
+  Matrix4 inverse = projectionMatrix.calculateInverse();
+  inverse.transpose();
+  std::vector<float> viewSpaceRaw(inverse.matrixVertMult(ndcCoordinates));
+
+  EXPECT_TRUE(viewSpaceRaw.size() == 4);
+  EXPECT_TRUE(viewSpaceRaw[3] != 0.0f);
+
+  // the w unprojection must be 10 because 10 is the inverse of 0.1 which is the near clipping plane distance value
+  float w = viewSpaceRaw[3];
+  EXPECT_NEAR(10.0f, w, tolerance);
+}

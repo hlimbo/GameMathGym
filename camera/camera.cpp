@@ -12,14 +12,25 @@ namespace Core {
     fieldOfView(0.0f), near(0.1f), far(100.0f),
     aspectRatio(1.0f), zoomFactor(1.0f), cameraMode(Camera::Mode::ORTHOGRAPHIC),
     left(-1.0f), right(1.0f), bottom(-1.0f), top(1.0f),
-    viewMatrix(std::make_unique<Matrix4>(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, -1.0f)))), 
+    viewMatrix(std::make_unique<Matrix4>(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, -2.0f)))), 
     projectionMatrix(std::make_unique<Matrix4>(MathUtils::createOrthographicMatrix(-1.0f, 1.0f, -1.0f, 1.0f, 0.1f, 100.0f))) {}
 
   Camera::Camera(float w, float h, float fov, float n, float f):
     aspectRatio(w / h), zoomFactor(1.0f), fieldOfView(fov), near(n), far(f),
     cameraMode{Camera::Mode::PERSPECTIVE},
-    viewMatrix(std::make_unique<Matrix4>(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, -1.0f)))), 
-    projectionMatrix(std::make_unique<Matrix4>(MathUtils::createPerspectiveMatrix(w / h, fov, n, f))) {}
+    viewMatrix(std::make_unique<Matrix4>(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, -2.0f)))), 
+    projectionMatrix(std::make_unique<Matrix4>(MathUtils::createPerspectiveMatrix(w / h, fov, n, f))) {
+
+      std::cout << "camera projection matrix: " << std::endl;
+      for (int i = 0;i < MAT4_SIZE; ++i) {
+        std::cout << (*projectionMatrix)[i] << " ";
+        if (i % MAT4_DIM == 3) {
+          std::cout << "\n";
+        }
+      }
+      std::cout << "\n\n";
+
+    }
 
   Camera::~Camera() = default;
 
@@ -81,6 +92,10 @@ namespace Core {
 
   MathUtils::Matrix4& Camera::getProjectionMatrix() const {
     return *projectionMatrix;
+  }
+
+  void Camera::setViewMatrix(const Matrix4& newViewMatrix) {
+    viewMatrix = std::make_unique<Matrix4>(newViewMatrix);
   }
 
   void Camera::setOrthoExtents(float left, float right, float bottom, float top, float near, float far) {

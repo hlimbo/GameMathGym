@@ -70,6 +70,8 @@ namespace MathUtils {
     Matrix4 operator*=(const Matrix4& rhs);
 
     // will internally convert a Vector3 to have an extra dimension
+    // return the 4th dimension for inverse matrix calculations
+    std::vector<float> matrixVertMult(const Vector3& rhs) const;
     Vector3 operator*(const Vector3& rhs) const;
 
     // readonly [] subscript operator -- returns a copy of the float held in the matrix
@@ -82,6 +84,10 @@ namespace MathUtils {
     Matrix4 operator*=(const float scalar);
 
     Matrix4 operator+(const Matrix4& rhs) const;
+
+    float determinant() const;
+    Matrix4 adjugate() const;
+    Matrix4 calculateInverse() const;
   };
 
   Matrix4 operator*(const float scalar, const Matrix4& rhs);
@@ -111,6 +117,10 @@ namespace MathUtils {
     - f - far clipping plane distance
   */
   Matrix4 createPerspectiveMatrix(float aspect, float fov, float n, float f);
+
+  Matrix4 lookAt(const Vector3& srcPosition, const Vector3& targetPosition, const Vector3& up);
+
+  Vector3 screenSpaceToViewSpace(float x, float y, float width, float height, const Matrix4& projectionMatrix);
 
   constexpr Matrix4 MAT4_IDENTITY({
       1.0f, 0.0f, 0.0f, 0.0f,

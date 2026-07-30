@@ -34,6 +34,22 @@ namespace MathUtils {
   };
 
   Vector3 operator*(float scalar, const Vector3& rhs);
+
+  /*
+    - converts SDL3 screen space coordinates that range for the following dimensions:
+      - x => [0, SCREEN_WIDTH]
+      - y => [0, SCREEN_HEIGHT]
+
+    TO
+      Normalized Device Coordinates NDC
+      - x => [-1, 1]
+      - y => [-1, 1]
+
+    Note: since the origin of screen space coordinates starts on the top left corner of the application window
+    and y grows downwards, this code will invert y to ensure y remaps to [-1,1] as Normalized Device Coordinates
+    origin is the center of the screen.
+  */
+  Vector3 convertFromScreenSpaceToNDC(float screenX, float screenY, float screenWidth, float screenHeight);
 }
 
 #endif // VECTOR3_H

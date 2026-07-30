@@ -33,6 +33,7 @@ namespace Core {
 
       MathUtils::Matrix4& getViewMatrix() const;
       MathUtils::Matrix4& getProjectionMatrix() const;
+      void setViewMatrix(const MathUtils::Matrix4& newViewMatrix);
 
       void setOrthoExtents(float left, float right, float bottom, float top, float near, float far);
     

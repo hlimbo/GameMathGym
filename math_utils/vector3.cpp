@@ -80,8 +80,16 @@ void Vector3::normalize() {
   *this /= divisor;
 }
 
-Vector3 Vector3::normalized() const{
+Vector3 Vector3::normalized() const {
   float divisor = this->magnitude();
   assert(divisor != 0.0f);
   return Vector3(*this / divisor);
+}
+
+Vector3 MathUtils::convertFromScreenSpaceToNDC(float screenX, float screenY, float screenWidth, float screenHeight) {
+  float ndcX = ((2.0f * screenX) / screenWidth) - 1.0f;
+  float ndcY = ((2.0f * (screenHeight - screenY)) / screenHeight) - 1.0f;
+  
+  // since OpenGL uses right hand coordinates, the z axis will be -1 as that is the forward facing direction
+  return Vector3(ndcX, ndcY, -1.0f);
 }

@@ -60,6 +60,9 @@ float near = 0.1f;
 float far = 100.0f;
 Camera mainCamera((float)WIDTH, (float)HEIGHT, fovDegrees, near, far);
 
+
+const bool* keyStates = NULL;
+
 // Determine shader version header based on target platform
 #ifdef __EMSCRIPTEN__
   const char* versionHeader = "#version 300 es\n";
@@ -235,12 +238,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     // disable face culling
     glDisable(GL_CULL_FACE);
 
-    //mainCamera.rotateX(55.0f);
-    mainCamera.setOrthoExtents(-1.0f, 1.0f, -1.0f, 1.0f, near, far);
-    if (mainCamera.cameraMode == Camera::Mode::PERSPECTIVE) {
-      std::cout << "camera is in perspective mode" << std::endl;
-    }
   }
+
+  if (mainCamera.cameraMode == Camera::Mode::PERSPECTIVE) {
+    std::cout << "camera is in perspective mode" << std::endl;
+  }
+
+  keyStates = SDL_GetKeyboardState(NULL);
 
   return SDL_APP_CONTINUE;
 }
@@ -258,6 +262,9 @@ float zoomFactor = 1.0f;
 float zoomSpeed = 2.0f;
 float rotateSpeed = 60.0f;
 float timeSinceLastSwitch = 0.0f;
+Vector3 dirInputs;
+// world space coordinates
+Vector3 mainCamPosition(0.0f, 0.0f, 2.0f);
 SDL_AppResult SDL_AppIterate(void *appstate) {
 
   // code snippet to get delta time so triangle rotates and moves same rate no matter which computer hardware is used...
@@ -295,6 +302,70 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   //     std:: cout << "switch to orthographic" << std::endl;
   //   }
   // }
+
+  // mouse interactions
+  float mouseX, mouseY;
+  SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mouseX, &mouseY);
+
+  bool isLeftMouseClick = mouseFlags & SDL_BUTTON_LMASK;
+  Matrix4 newLookAtMatrix = mainCamera.getViewMatrix();
+  if (isLeftMouseClick) {
+    std::cout << "mouse click screen coordinates: " << "(" << mouseX << ", " << mouseY << ")" << std::endl;
+    for (int i = 0;i < MathUtils::MAT4_SIZE; ++i) {
+      std::cout << mainCamera.getProjectionMatrix().cells[i] << " ";
+      if (i % MathUtils::MAT4_DIM == 3) {
+        std::cout << "\n";
+      }
+    }
+    std::cout << "\n\n";
+    Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
+    std::cout << "view coords: " << viewCoords.x << ", " << viewCoords.y << ", " << viewCoords.z << "\n";
+
+    // magnify the look at rotation sensitivity
+    float strideFactor = 8.0f;
+    viewCoords.x *= strideFactor;
+    viewCoords.y *= strideFactor;
+    // viewCoords.normalize();
+
+    Vector3 targetPos = viewCoords;
+    Vector3 up(0.0f, 1.0f, 0.0f);
+    newLookAtMatrix = MathUtils::lookAt(mainCamPosition, targetPos, up);
+
+    // 12, 13, 14 are the translation cells for x,y, and z for view camera space
+    // this is temporarily and will be removed once I combine movement and looking around with a mouse
+    newLookAtMatrix.cells[12] = mainCamera.getViewMatrix().cells[12];
+    newLookAtMatrix.cells[13] = mainCamera.getViewMatrix().cells[13];
+    newLookAtMatrix.cells[14] = mainCamera.getViewMatrix().cells[14];
+  }
+
+  // Pan camera left and right -- inverted for the camera so the directions will be opposite
+  if (keyStates[SDL_SCANCODE_A]) {
+    dirInputs.x = 1.0f;
+  } else if (keyStates[SDL_SCANCODE_D]) {
+    dirInputs.x = -1.0f;
+  } else {
+    dirInputs.x = 0.0f;
+  }
+
+  // Dolly camera forward or backwards
+  if (keyStates[SDL_SCANCODE_W]) {
+    dirInputs.z = 1.0f;
+  } else if (keyStates[SDL_SCANCODE_S]) {
+    dirInputs.z = -1.0f;
+  } else {
+    dirInputs.z = 0.0f;
+  }
+
+  float speed = 2.0f;
+  // normalize the inputs into unit vector to ensure movement on diagonals isn't faster than moving strictly along one axis.
+  if (dirInputs.sqrMagnitude() != 0.0f) {
+    dirInputs.normalize();
+  }
+
+  // mainCamera.translate(dirInputs * speed * deltaTime);
+  Matrix4 translationMatrix = MathUtils::makeTranslationMatrix(dirInputs * speed * deltaTime);
+  Matrix4 newViewMatrix = translationMatrix * newLookAtMatrix;
+  mainCamera.setViewMatrix(newViewMatrix);
 
   auto viewMatT = mainCamera.getViewMatrix();
   auto projMatT = mainCamera.getProjectionMatrix();

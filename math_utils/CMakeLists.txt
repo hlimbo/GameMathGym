@@ -25,6 +25,7 @@ target_sources(
   PRIVATE
     matrix4_tests.cpp
     matrix4.cpp
+    vector3.cpp
 )
 
 target_link_libraries(
