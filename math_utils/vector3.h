@@ -48,6 +48,8 @@ namespace MathUtils {
     Note: since the origin of screen space coordinates starts on the top left corner of the application window
     and y grows downwards, this code will invert y to ensure y remaps to [-1,1] as Normalized Device Coordinates
     origin is the center of the screen.
+
+    RETURNS: Vector3 containing the NDC coordinates for x and y axis. The z axis will be 0 as its not computed in this function.
   */
   Vector3 convertFromScreenSpaceToNDC(float screenX, float screenY, float screenWidth, float screenHeight);
 }

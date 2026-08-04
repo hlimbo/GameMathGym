@@ -90,6 +90,5 @@ Vector3 MathUtils::convertFromScreenSpaceToNDC(float screenX, float screenY, flo
   float ndcX = ((2.0f * screenX) / screenWidth) - 1.0f;
   float ndcY = ((2.0f * (screenHeight - screenY)) / screenHeight) - 1.0f;
   
-  // since OpenGL uses right hand coordinates, the z axis will be -1 as that is the forward facing direction
-  return Vector3(ndcX, ndcY, -1.0f);
+  return Vector3(ndcX, ndcY, 0.0f);
 }

@@ -311,13 +311,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   Matrix4 newLookAtMatrix = mainCamera.getViewMatrix();
   if (isLeftMouseClick) {
     std::cout << "mouse click screen coordinates: " << "(" << mouseX << ", " << mouseY << ")" << std::endl;
-    for (int i = 0;i < MathUtils::MAT4_SIZE; ++i) {
-      std::cout << mainCamera.getProjectionMatrix().cells[i] << " ";
-      if (i % MathUtils::MAT4_DIM == 3) {
-        std::cout << "\n";
-      }
-    }
-    std::cout << "\n\n";
+
     Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
     std::cout << "view coords: " << viewCoords.x << ", " << viewCoords.y << ", " << viewCoords.z << "\n";
 
@@ -331,11 +325,15 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     Vector3 up(0.0f, 1.0f, 0.0f);
     newLookAtMatrix = MathUtils::lookAt(mainCamPosition, targetPos, up);
 
-    // 12, 13, 14 are the translation cells for x,y, and z for view camera space
-    // this is temporarily and will be removed once I combine movement and looking around with a mouse
-    newLookAtMatrix.cells[12] = mainCamera.getViewMatrix().cells[12];
-    newLookAtMatrix.cells[13] = mainCamera.getViewMatrix().cells[13];
-    newLookAtMatrix.cells[14] = mainCamera.getViewMatrix().cells[14];
+    // // 12, 13, 14 are the translation cells for x,y, and z for view camera space
+    // // this is temporarily and will be removed once I combine movement and looking around with a mouse
+    // newLookAtMatrix.cells[12] = mainCamera.getViewMatrix().cells[12];
+    // newLookAtMatrix.cells[13] = mainCamera.getViewMatrix().cells[13];
+    // newLookAtMatrix.cells[14] = mainCamera.getViewMatrix().cells[14];
+
+    Vector3 worldCoords = MathUtils::screenSpaceToWorldSpace(mouseX, mouseY, 10.0f, (float)WIDTH, (float)HEIGHT, near, far, mainCamera.getProjectionMatrix(), mainCamera.getViewMatrix(), true);
+
+    std::cout << "world  coords: " << worldCoords.x << ", " << worldCoords.y << ", " << worldCoords.z << "\n\n";
   }
 
   // Pan camera left and right -- inverted for the camera so the directions will be opposite
@@ -364,7 +362,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   // mainCamera.translate(dirInputs * speed * deltaTime);
   Matrix4 translationMatrix = MathUtils::makeTranslationMatrix(dirInputs * speed * deltaTime);
-  Matrix4 newViewMatrix = translationMatrix * newLookAtMatrix;
+  Matrix4 newViewMatrix = newLookAtMatrix * translationMatrix;
   mainCamera.setViewMatrix(newViewMatrix);
 
   auto viewMatT = mainCamera.getViewMatrix();

@@ -72,6 +72,7 @@ namespace MathUtils {
     // will internally convert a Vector3 to have an extra dimension
     // return the 4th dimension for inverse matrix calculations
     std::vector<float> matrixVertMult(const Vector3& rhs) const;
+    std::vector<float> matrixVertMult(const Vector3& rhs, float w) const;
     Vector3 operator*(const Vector3& rhs) const;
 
     // readonly [] subscript operator -- returns a copy of the float held in the matrix
@@ -121,6 +122,26 @@ namespace MathUtils {
   Matrix4 lookAt(const Vector3& srcPosition, const Vector3& targetPosition, const Vector3& up);
 
   Vector3 screenSpaceToViewSpace(float x, float y, float width, float height, const Matrix4& projectionMatrix);
+  /*
+    Screen Space Coordinates ranges:
+      - x-axis: 0 to width
+      - y-axis: 0 to height
+      - In SDL3, screen coordinates on y-axis are inverted. Top left corner is (0,0) and bottom right corner is (width, height)
+  
+    Parameters:
+    - x - x-axis coordinates in screen space
+    - y - y-axis coordinates in screen space
+    - z - z represents the distance from the camera in world units (eye distance)
+    - width - screen width in pixels
+    - height - screen height in pixels
+    - near - near clipping plane distance (must be > 0 and < far)
+    - far - far clipping plane distance (must be > 0 and > near)
+    - projectionMatrix - can either be the perspective matrix or orthographic matrix
+    - viewMatrix - camera's view matrix
+    - isPerspective - if true, it is using a perspective projection matrix; false it defaults to an orthographic projection matrix
+
+  */
+  Vector3 screenSpaceToWorldSpace(float x, float y, float z, float width, float height, float near, float far, const Matrix4& projectionMatrix, const Matrix4& viewMatrix, bool isPerspective);
 
   constexpr Matrix4 MAT4_IDENTITY({
       1.0f, 0.0f, 0.0f, 0.0f,

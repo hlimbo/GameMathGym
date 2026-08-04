@@ -134,8 +134,6 @@ TEST(Matrix4Tests, RotationMatrices)
     0.0f, -1.0f, 0.0f, 0.0f,
     0.0f, 0.0f, 0.0f, 1.0f
   });
-  // OpenGL column major order is used...
-  expMat.transpose();
 
   const float tolerance = 1e-5f;
   for (int i = 0;i < MAT4_SIZE; ++i) {
@@ -217,10 +215,10 @@ TEST(Matrix4Tests, MatrixMultiplication)
   });
 
   Matrix4 expMat2({
-    20.0f, 20.0f, 20.0f, 20.0f,
-    52.0f, 52.0f, 52.0f, 52.0f,
-    84.0f, 84.0f, 84.0f, 84.0f,
-    116.0f, 116.0f, 116.0f, 116.0f
+    56.0f, 64.0f, 72.0f, 80.0f,
+    56.0f, 64.0f, 72.0f, 80.0f,
+    56.0f, 64.0f, 72.0f, 80.0f,
+    56.0f, 64.0f, 72.0f, 80.0f
   });
 
   mat9 *= MAT4_IDENTITY;
@@ -243,10 +241,10 @@ TEST(Matrix4Tests, MatrixVectorMultiplication)
   EXPECT_FLOAT_EQ(a.z, a1.z);
 
   Matrix4 transMatrix({
-    1.0f, 0.0f, 0.0f, 2.0f, // 3
-    0.0f, 1.0f, 0.0f, 3.0f, // 5
-    0.0f, 0.0f, 1.0f, 5.0f, // 8
-    0.0f, 0.0f, 0.0f, 1.0f  // 1
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    2.0f, 3.0f, 5.0f, 1.0f
   });
 
   Vector3 a2(transMatrix * a);
@@ -427,7 +425,16 @@ TEST(Matrix4Tests, InverseMatrix)
     2, 9, 3, 1,
     2, 1, 3, 1
   });
-  EXPECT_DEATH(invalidMat.calculateInverse(), "det != 0\\.0f");
+  EXPECT_DEATH(invalidMat.calculateInverse(), "absDet > 1e-8f");
+
+  // Check Identity Next
+  Matrix4 invMat = mat.calculateInverse();
+  Matrix4 actualIdentity = mat * invMat;
+  
+  tolerance = 0.001f;
+  for (int i = 0;i < MAT4_SIZE; ++i) {
+    EXPECT_NEAR(MAT4_IDENTITY[i], actualIdentity[i], tolerance);
+  }
 }
 
 TEST(Matrix4Tests, MatrixPerspectiveIntegrationTest)
@@ -438,6 +445,8 @@ TEST(Matrix4Tests, MatrixPerspectiveIntegrationTest)
   float x = width / 4.0f;
   float y = height / 4.0f;
   Vector3 ndcCoordinates = MathUtils::convertFromScreenSpaceToNDC(x, y, width, height);
+  // -1 is set here because this is for projecting a ray towards the near clipping plane
+  ndcCoordinates.z = -1.0f;
 
   EXPECT_NEAR(-0.5f, ndcCoordinates.x, tolerance);
   EXPECT_NEAR(0.5f, ndcCoordinates.y, tolerance);
@@ -448,9 +457,7 @@ TEST(Matrix4Tests, MatrixPerspectiveIntegrationTest)
   float far = 1000.0f;
   Matrix4 projectionMatrix(MathUtils::createPerspectiveMatrix(aspect, fovDegrees, near, far));
 
-  // Note: inverted matrix needs to be transposed before applying the multiplication because it is in row major form rather than column major order! 
   Matrix4 inverse = projectionMatrix.calculateInverse();
-  inverse.transpose();
   std::vector<float> viewSpaceRaw(inverse.matrixVertMult(ndcCoordinates));
 
   EXPECT_TRUE(viewSpaceRaw.size() == 4);
@@ -459,4 +466,41 @@ TEST(Matrix4Tests, MatrixPerspectiveIntegrationTest)
   // the w unprojection must be 10 because 10 is the inverse of 0.1 which is the near clipping plane distance value
   float w = viewSpaceRaw[3];
   EXPECT_NEAR(10.0f, w, tolerance);
+}
+
+TEST(Matrix4Tests, VerifyScreenToWorldCoordinates)
+{
+  float mouseX = 120.0f, mouseY = 653.0f;
+  float distFromCamera = 10.0f;
+  float width = 1280.0f, height = 800.0f;
+  float near = 0.1f, far = 100.0f;
+
+  float aspect = width / height;
+  float fovDegrees = 90.0f;
+  Matrix4 projMat(MathUtils::createPerspectiveMatrix(aspect, fovDegrees, near, far));
+  Matrix4 viewMat(MathUtils::makeTranslationMatrix(Vector3(0.0f, 0.0f, -1.0f)));
+
+  Vector3 worldCoord = MathUtils::screenSpaceToWorldSpace(
+    mouseX, mouseY, distFromCamera,
+    width, height, near, far,
+    projMat, viewMat, true
+  );
+
+  // calculate the reverse to verify screenSpaceToWorldSpace works as intended
+  std::vector<float> viewCoord = viewMat.matrixVertMult(worldCoord);
+  Vector3 vC(viewCoord[0], viewCoord[1], viewCoord[2]);
+  std::vector<float> clipCoord = projMat.matrixVertMult(vC);
+
+  // convert from clip to NDC
+  Vector3 ndcCoord(clipCoord[0], clipCoord[1], clipCoord[2]);
+  ndcCoord *= (1.0f / clipCoord[3]);
+
+  // convert from NDC to screen
+  float screenX = (width * (ndcCoord.x + 1.0f)) / 2.0f;
+  float screenY = ((1.0f - ndcCoord.y) / 2.0f) * height;
+  
+  // due to floating point inprecisions, checking if its approx the original mouse values should be an acceptable check here!
+  const float tolerance = 0.001f;
+  EXPECT_NEAR(mouseX, screenX, tolerance);
+  EXPECT_NEAR(mouseY, screenY, tolerance);
 }

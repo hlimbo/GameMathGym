@@ -9,13 +9,15 @@ using namespace MathUtils;
 Matrix4 Matrix4::operator*(const Matrix4& rhs) const {
   Matrix4 output;
   int i = 0;
-  for (int r1 = 0; r1 < MAT4_DIM; ++r1) {
-    for (int c2 = 0; c2 < MAT4_DIM; ++c2) {
+  for (int c2 = 0; c2 < MAT4_DIM; ++c2) {
+    for (int r1 = 0; r1 < MAT4_DIM; ++r1) {
       float dotProduct = 0.0f;
       for (int rc = 0; rc < MAT4_DIM; ++rc) {
-        int rowMajorIndex1 = r1 * MAT4_DIM + rc;
-        int rowMajorIndex2 = rc * MAT4_DIM + c2;
-        dotProduct += cells[rowMajorIndex1] * rhs.cells[rowMajorIndex2];
+        int colMajorIndex1 = rc * MAT4_DIM + r1;
+        int colMajorIndex2 = c2 * MAT4_DIM + rc;
+        
+        dotProduct += cells[colMajorIndex1] * rhs.cells[colMajorIndex2];
+
       }
 
       output.cells[i] = dotProduct;
@@ -34,14 +36,28 @@ Matrix4 Matrix4::operator*=(const Matrix4& rhs) {
 std::vector<float> Matrix4::matrixVertMult(const Vector3& rhs) const {
   float temp[4] { rhs.x, rhs.y, rhs.z, 1.0f };
   float midAns[4] { 0.0f, 0.0f, 0.0f, 0.0f };
-  int j = 0;
 
-  for (int i = 0; i < MAT4_SIZE; ++i) {
-    midAns[j] += cells[i] * temp[i % MAT4_DIM];
+  for (int i = 0;i < MAT4_DIM; ++i) {
+    midAns[i] = 
+      cells[i + MAT4_DIM * 0] * temp[0] +
+      cells[i + MAT4_DIM * 1] * temp[1] +
+      cells[i + MAT4_DIM * 2] * temp[2] +
+      cells[i + MAT4_DIM * 3] * temp[3];
+  }
 
-    if (i % MAT4_DIM == 3) {
-      ++j;
-    }
+  return std::vector<float>({midAns[0], midAns[1], midAns[2], midAns[3]});
+}
+
+std::vector<float> Matrix4::matrixVertMult(const Vector3& rhs, float w) const {
+  float temp[4] { rhs.x, rhs.y, rhs.z, w };
+  float midAns[4] { 0.0f, 0.0f, 0.0f, 0.0f };
+
+  for (int i = 0;i < MAT4_DIM; ++i) {
+    midAns[i] = 
+      cells[i + MAT4_DIM * 0] * temp[0] +
+      cells[i + MAT4_DIM * 1] * temp[1] +
+      cells[i + MAT4_DIM * 2] * temp[2] +
+      cells[i + MAT4_DIM * 3] * temp[3];
   }
 
   return std::vector<float>({midAns[0], midAns[1], midAns[2], midAns[3]});
@@ -97,56 +113,68 @@ Matrix4 Matrix4::operator+(const Matrix4& rhs) const {
   return Matrix4(temp);
 }
 
-float Matrix4::determinant() const {
-  // https://semath.info/src/inverse-cofactor-ex4.html
-  float det = 
-    cells[0]*cells[5]*cells[10]*cells[15] + cells[0]*cells[6]*cells[11]*cells[13] + cells[0]*cells[7]*cells[9]*cells[14]
-    - cells[0]*cells[7]*cells[10]*cells[13] - cells[0]*cells[6]*cells[9]*cells[15] - cells[0]*cells[5]*cells[11]*cells[14]
-    - cells[1]*cells[4]*cells[10]*cells[15] - cells[2]*cells[4]*cells[11]*cells[13] - cells[3]*cells[4]*cells[9]*cells[14]
-    + cells[3]*cells[4]*cells[10]*cells[13] + cells[2]*cells[4]*cells[9]*cells[15] + cells[1]*cells[4]*cells[11]*cells[14]
-    + cells[1]*cells[6]*cells[8]*cells[15] + cells[2]*cells[7]*cells[8]*cells[13] + cells[3]*cells[5]*cells[8]*cells[14]
-    - cells[3]*cells[6]*cells[8]*cells[13] - cells[2]*cells[5]*cells[8]*cells[15] - cells[1]*cells[7]*cells[8]*cells[14]
-    - cells[1]*cells[6]*cells[11]*cells[12] - cells[2]*cells[7]*cells[9]*cells[12] - cells[3]*cells[5]*cells[10]*cells[12]
-    + cells[3]*cells[6]*cells[9]*cells[12] + cells[2]*cells[5]*cells[11]*cells[12] + cells[1]*cells[7]*cells[10]*cells[12];
+Matrix4 Matrix4::adjugate() const {
+    Matrix4 o;
 
-  return det;
+    // Column 0 (indices 0, 1, 2, 3)
+    float a11 = cells[0],  a21 = cells[1],  a31 = cells[2],  a41 = cells[3];
+    // Column 1 (indices 4, 5, 6, 7)
+    float a12 = cells[4],  a22 = cells[5],  a32 = cells[6],  a42 = cells[7];
+    // Column 2 (indices 8, 9, 10, 11)
+    float a13 = cells[8],  a23 = cells[9],  a33 = cells[10], a43 = cells[11];
+    // Column 3 (indices 12, 13, 14, 15)
+    float a14 = cells[12], a24 = cells[13], a34 = cells[14], a44 = cells[15];
+
+    // First Row of Adjugate (Col 0 of output in Column-Major)
+    o.cells[0]  =  a22*(a33*a44 - a34*a43) - a23*(a32*a44 - a34*a42) + a24*(a32*a43 - a33*a42);
+    o.cells[4]  = -a12*(a33*a44 - a34*a43) + a13*(a32*a44 - a34*a42) - a14*(a32*a43 - a33*a42);
+    o.cells[8]  =  a12*(a23*a44 - a24*a43) - a13*(a22*a44 - a24*a42) + a14*(a22*a43 - a23*a42);
+    o.cells[12]  = -a12*(a23*a34 - a24*a33) + a13*(a22*a34 - a24*a32) - a14*(a22*a33 - a23*a32);
+
+    // Second Row of Adjugate (Col 1 of output in Column-Major)
+    o.cells[1]  = -a21*(a33*a44 - a34*a43) + a23*(a31*a44 - a34*a41) - a24*(a31*a43 - a33*a41);
+    o.cells[5]  =  a11*(a33*a44 - a34*a43) - a13*(a31*a44 - a34*a41) + a14*(a31*a43 - a33*a41);
+    o.cells[9]  = -a11*(a23*a44 - a24*a43) + a13*(a21*a44 - a24*a41) - a14*(a21*a43 - a23*a41);
+    o.cells[13]  =  a11*(a23*a34 - a24*a33) - a13*(a21*a34 - a24*a31) + a14*(a21*a33 - a23*a31);
+
+    // Third Row of Adjugate (Col 2 of output in Column-Major)
+    o.cells[2]  =  a21*(a32*a44 - a34*a42) - a22*(a31*a44 - a34*a41) + a24*(a31*a42 - a32*a41);
+    o.cells[6]  = -a11*(a32*a44 - a34*a42) + a12*(a31*a44 - a34*a41) - a14*(a31*a42 - a32*a41);
+    o.cells[10] =  a11*(a22*a44 - a24*a42) - a12*(a21*a44 - a24*a41) + a14*(a21*a42 - a22*a41);
+    o.cells[14] = -a11*(a22*a34 - a24*a32) + a12*(a21*a34 - a24*a31) - a14*(a21*a32 - a22*a31);
+
+    // Fourth Row of Adjugate (Col 3 of output in Column-Major)
+    o.cells[3] = -a21*(a32*a43 - a33*a42) + a22*(a31*a43 - a33*a41) - a23*(a31*a42 - a32*a41);
+    o.cells[7] =  a11*(a32*a43 - a33*a42) - a12*(a31*a43 - a33*a41) + a13*(a31*a42 - a32*a41);
+    o.cells[11] = -a11*(a22*a43 - a23*a42) + a12*(a21*a43 - a23*a41) - a13*(a21*a42 - a22*a41);
+    o.cells[15] =  a11*(a22*a33 - a23*a32) - a12*(a21*a33 - a23*a31) + a13*(a21*a32 - a22*a31);
+
+    return o;
 }
 
-Matrix4 Matrix4::adjugate() const {
-  Matrix4 o;
+float Matrix4::determinant() const {
+  // Input Column 0 (indices 0, 1, 2, 3)
+  float a11 = cells[0], a21 = cells[1], a31 = cells[2], a41 = cells[3];
+  // Input Column 1 (indices 4, 5, 6, 7)
+  float a12 = cells[4], a22 = cells[5], a32 = cells[6], a42 = cells[7];
+  // Input Column 2 (indices 8, 9, 10, 11)
+  float a13 = cells[8], a23 = cells[9], a33 = cells[10], a43 = cells[11];
+  // Input Column 3 (indices 12, 13, 14, 15)
+  float a14 = cells[12], a24 = cells[13], a34 = cells[14], a44 = cells[15];
 
-  // https://semath.info/src/inverse-cofactor-ex4.html
-  float a11 = cells[0], a12 = cells[1], a13 = cells[2], a14 = cells[3];
-  float a21 = cells[4], a22 = cells[5], a23 = cells[6], a24 = cells[7];
-  float a31 = cells[8], a32 = cells[9], a33 = cells[10], a34 = cells[11];
-  float a41 = cells[12], a42 = cells[13], a43 = cells[14], a44 = cells[15];
+  // Compute cofactors for Column 0 only
+  float c11 =  (a22*(a33*a44 - a34*a43) - a23*(a32*a44 - a34*a42) + a24*(a32*a43 - a33*a42));
+  float c21 = -(a12*(a33*a44 - a34*a43) - a13*(a32*a44 - a34*a42) + a14*(a32*a43 - a33*a42));
+  float c31 =  (a12*(a23*a44 - a24*a43) - a13*(a22*a44 - a24*a42) + a14*(a22*a43 - a23*a42));
+  float c41 = -(a12*(a23*a34 - a24*a33) - a13*(a22*a34 - a24*a32) + a14*(a22*a33 - a23*a32));
 
-  o.cells[0] = a22*a33*a44 + a23*a34*a42 + a24*a32*a43 - a24*a33*a42 - a23*a32*a44 - a22*a34*a43;
-  o.cells[1] = -a12*a33*a44 - a13*a34*a42 - a14*a32*a43 + a14*a33*a42 + a13*a32*a44 + a12*a34*a43;
-  o.cells[2] = a12*a23*a44 + a13*a24*a42 + a14*a22*a43 - a14*a23*a42 - a13*a22*a44 - a12*a24*a43;
-  o.cells[3] = -a12*a23*a34 - a13*a24*a32 - a14*a22*a33 + a14*a23*a32 + a13*a22*a34 + a12*a24*a33;
-
-  o.cells[4] = -a21*a33*a44 - a23*a34*a41 - a24*a31*a43 + a24*a33*a41 + a23*a31*a44 + a21*a34*a43;
-  o.cells[5] = a11*a33*a44 + a13*a34*a41 + a14*a31*a43 - a14*a33*a41 - a13*a31*a44 - a11*a34*a43;
-  o.cells[6] = -a11*a23*a44 - a13*a24*a41 - a14*a21*a43 + a14*a23*a41 + a13*a21*a44 + a11*a24*a43;
-  o.cells[7] = a11*a23*a34 + a13*a24*a31 + a14*a21*a33 - a14*a23*a31 - a13*a21*a34 - a11*a24*a33;
-
-  o.cells[8] = a21*a32*a44 + a22*a34*a41 + a24*a31*a42 - a24*a32*a41 - a22*a31*a44 - a21*a34*a42;
-  o.cells[9] = -a11*a32*a44 - a12*a34*a41 - a14*a31*a42 + a14*a32*a41 + a12*a31*a44 + a11*a34*a42;
-  o.cells[10] = a11*a22*a44 + a12*a24*a41 + a14*a21*a42 - a14*a22*a41 - a12*a21*a44 - a11*a24*a42;
-  o.cells[11] = -a11*a22*a34 - a12*a24*a31 - a14*a21*a32 + a14*a22*a31 + a12*a21*a34 + a11*a24*a32;
-
-  o.cells[12] = -a21*a32*a43 - a22*a33*a41 - a23*a31*a42 + a23*a32*a41 + a22*a31*a43 + a21*a33*a42;
-  o.cells[13] = a11*a32*a43 + a12*a33*a41 + a13*a31*a42 - a13*a32*a41 - a12*a31*a43 - a11*a33*a42;
-  o.cells[14] = -a11*a22*a43 - a12*a23*a41 - a13*a21*a42 + a13*a22*a41 + a12*a21*a43 + a11*a23*a42;
-  o.cells[15] =  a11*a22*a33 + a12*a23*a31 + a13*a21*a32 - a13*a22*a31 - a12*a21*a33 - a11*a23*a32;
-
-  return o;
+  return a11 * c11 + a21 * c21 + a31 * c31 + a41 * c41;
 }
 
 Matrix4 Matrix4::calculateInverse() const {
   float det = determinant();
-  assert(det != 0.0f);
+  float absDet = std::abs(det);
+  assert(absDet > 1e-8f);
   return (1.0f / det) * adjugate();
 }
 
@@ -190,30 +218,32 @@ Matrix4 MathUtils::rotate(const Matrix4& m, const float anglesRadians, const Vec
   float oneMinusCos = 1.0f - cosT;
   float sinT = (float)std::sin(d);
 
+  float m11 = n.x * n.x * oneMinusCos + cosT;
+  float m12 = n.x * n.y * oneMinusCos + n.z * sinT;
+  float m13 = n.x * n.z * oneMinusCos - n.y * sinT;
+  float m14 = 0.0f;
+  
+  float m21 = n.x * n.y * oneMinusCos - n.z * sinT;
+  float m22 = n.y * n.y * oneMinusCos + cosT;
+  float m23 = n.y * n.z * oneMinusCos + n.x * sinT;
+  float m24 = 0.0f;
+
+  float m31 = n.x * n.z * oneMinusCos + n.y * sinT;
+  float m32 = n.y * n.z * oneMinusCos - n.x * sinT;
+  float m33 = n.z * n.z *oneMinusCos + cosT;
+  float m34 = 0.0f;
+
+  float m41 = 0.0f;
+  float m42 = 0.0f;
+  float m43 = 0.0f;
+  float m44 = 1.0f;
+  
+  // Column Major Order
   Matrix4 rotationMatrix({
-    // column 0
-    n.x * n.x * oneMinusCos + cosT, 
-    n.x * n.y * oneMinusCos - n.z * sinT, 
-    n.x * n.z * oneMinusCos + n.y * sinT, 
-    0.0f,
-
-    // column 1
-    n.x * n.y * oneMinusCos + n.z * sinT, 
-    n.y * n.y * oneMinusCos + cosT,
-    n.y * n.z * oneMinusCos - n.x * sinT,
-    0.0f,
-
-    // column 2
-    n.x * n.z * oneMinusCos - n.y * sinT,
-    n.y * n.z * oneMinusCos + n.x * sinT,
-    n.z * n.z * oneMinusCos + cosT,
-    0.0f,
-
-    // column 3
-    0.0f,
-    0.0f,
-    0.0f,
-    1.0f
+    m11, m12, m13, m14,
+    m21, m22, m23, m24,
+    m31, m32, m33, m34,
+    m41, m42, m43, m44
   });
 
   return m * rotationMatrix;
@@ -262,20 +292,26 @@ Matrix4 MathUtils::createPerspectiveMatrix(float aspect, float fov, float n, flo
   float zDepth1 = -(f+n) / (f-n);
   float zDepth2 = (-2.0f*f*n) / (f-n);
 
-  // column 0 (x horizontal FOV)
-  // column 1 (y vertical FOV)
-  // column 2 (used for z-depth and clipping tests)
-  // column 3 (used to preserve original depth information for z)
+  // row 0 (x horizontal FOV)
+  // row 1 (y vertical FOV)
+  // row 2 (used for z-depth and clipping tests)
+  // row 3 (used to preserve original depth information for z)
   return Matrix4({
     horizFov,   0.0f,     0.0f,       0.0f, 
     0.0f,       vertFov,  0.0f,       0.0f,
-    0.0f,       0.0f,     zDepth1,   -1.0f,
+    0.0f,       0.0f,     zDepth1,    -1.0f,
     0.0f,       0.0f,     zDepth2,    0.0f
   });
 }
 
 // Column Major order
 Matrix4 MathUtils::lookAt(const Vector3& srcPosition, const Vector3& targetPosition, const Vector3& up) {
+
+  // TODO: handle cases of gimbal lock here...
+  // when up vector input matches the forward basis vector's direction
+  // I'd need to pick a different up vector to fallback on....
+
+
   Vector3 forwardBasis(targetPosition - srcPosition);
   forwardBasis.normalize();
 
@@ -296,12 +332,22 @@ Matrix4 MathUtils::lookAt(const Vector3& srcPosition, const Vector3& targetPosit
   });
 }
 
+// TODO: fix this computation!
+// TODO: read up on glReadPixels as its primary use case is to allow me to select objects on screen where the gpu will at the depth buffer information at me at that point...
 Vector3 MathUtils::screenSpaceToViewSpace(float x, float y, float width, float height, const Matrix4& projectionMatrix) {
   Vector3 ndcCoordinates = MathUtils::convertFromScreenSpaceToNDC(x, y, width, height);
 
+  // In NDC, the values range between the following axes:
+  // -1 <= x <= +1
+  // -1 <= y <= +1
+  // -1 <= z <= +1
+  // near clipping plane is mapped to -1
+  // far clipping plane is mapped to +1
+  ndcCoordinates.z = -1.0f;
+
   // Note: inverted matrix needs to be transposed before applying the multiplication because it is in row major form rather than column major order! 
   Matrix4 inverse = projectionMatrix.calculateInverse();
-  inverse.transpose();
+  inverse.transpose(); // TODO: double check this one again...
   std::vector<float> viewSpaceRaw(inverse.matrixVertMult(ndcCoordinates));
 
   assert(viewSpaceRaw.size() == 4);
@@ -313,4 +359,49 @@ Vector3 MathUtils::screenSpaceToViewSpace(float x, float y, float width, float h
   Vector3 viewSpaceCoords(viewSpaceRaw[0] / w, viewSpaceRaw[1] / w, viewSpaceRaw[2] / w);
 
   return viewSpaceCoords;
+}
+
+Vector3 MathUtils::screenSpaceToWorldSpace(float x, float y, float z, float width, float height, float near, float far, const Matrix4& projectionMatrix, const Matrix4& viewMatrix, bool isPerspective) {
+  assert(near > 0.0f);
+  assert(far > near);
+  assert(z != 0.0f);
+
+  Vector3 ndcCoordinates(MathUtils::convertFromScreenSpaceToNDC(x, y, width, height));
+  Vector3 worldSpaceCoordinates;
+  std::vector<float> world4DCoordinates;
+
+  // Perspective Conversion
+  float wclip = 1.0f;
+  float zclip = 1.0f;
+  if (isPerspective) {
+    // convert z eye distance to z ndc coordinates
+    // The formula comes from the zDepth1 and zDepth2 formulas from the createPerspectiveMatrix (converts view space coordinates to clip coordinates to ndc coordinates)
+    zclip = z * ((far+near)/(far-near)) - ((2.0f * far * near) / (far - near));
+    wclip = z;
+    ndcCoordinates.z = zclip / wclip;
+  } else {
+    // Orthographic Conversion
+    zclip = (-1.0f * z * ((2.0f) / (far - near))) + (-1.0f * (far + near) / (far - near));
+    wclip = 1.0f;
+    ndcCoordinates.z = zclip / wclip;
+  }
+
+  Vector3 clipCoords(
+    ndcCoordinates.x * wclip,
+    ndcCoordinates.y * wclip,
+    zclip
+  );
+
+  Matrix4 projViewMat = projectionMatrix * viewMatrix;
+  Matrix4 invMat = projViewMat.calculateInverse();
+
+  world4DCoordinates = invMat.matrixVertMult(clipCoords, wclip);
+
+  assert(world4DCoordinates.size() == 4);
+  assert(world4DCoordinates[3] != 0.0f);
+
+  float w = world4DCoordinates[3];
+  worldSpaceCoordinates = Vector3(world4DCoordinates[0] / w, world4DCoordinates[1] / w, world4DCoordinates[2] / w);
+
+  return worldSpaceCoordinates;
 }
