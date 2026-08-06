@@ -306,29 +306,34 @@ Matrix4 MathUtils::createPerspectiveMatrix(float aspect, float fov, float n, flo
 
 // Column Major order
 Matrix4 MathUtils::lookAt(const Vector3& srcPosition, const Vector3& targetPosition, const Vector3& up) {
-
-  // TODO: handle cases of gimbal lock here...
-  // when up vector input matches the forward basis vector's direction
-  // I'd need to pick a different up vector to fallback on....
-
-
   Vector3 forwardBasis(targetPosition - srcPosition);
   forwardBasis.normalize();
 
-  Vector3 rightBasis(forwardBasis.cross(up));
+  Vector3 upCopy(up);
+  // handle gimbal lock case (if foward vector points global (0,1,0) y up change it to be in the global z axis instead)
+  if (fabs(forwardBasis.x) < 0.001f && fabs(forwardBasis.z) < 0.001f) {
+    if (forwardBasis.y > 0) {
+      upCopy = Vector3(0, 0, -1);
+    } else {
+      upCopy = Vector3(0, 0, 1);
+    }
+  }
+
+  Vector3 rightBasis(forwardBasis.cross(upCopy));
   rightBasis.normalize();
 
   Vector3 upBasis(rightBasis.cross(forwardBasis));
   upBasis.normalize();
 
-  // preserve previous translation units assuming no translations are made
-  // will need to calculate it later on when I combine movement and looking around with a camera
+  float translationX = rightBasis.dot(srcPosition) * -1.0f;
+  float translationY = upBasis.dot(srcPosition) * -1.0f;
+  float translationZ = forwardBasis.dot(srcPosition);
 
   return Matrix4({
     rightBasis.x,     rightBasis.y,     rightBasis.z,     0.0f,
     upBasis.x,        upBasis.y,        upBasis.z,        0.0f,
-    -forwardBasis.x,  -forwardBasis.y,  -forwardBasis.z,  0.0f,
-    0.0f,             0.0f,             0.0f,             1.0f
+    forwardBasis.x,   forwardBasis.y,   forwardBasis.z,  0.0f,
+    translationX,     translationY,     translationZ,     1.0f
   });
 }
 
@@ -345,9 +350,7 @@ Vector3 MathUtils::screenSpaceToViewSpace(float x, float y, float width, float h
   // far clipping plane is mapped to +1
   ndcCoordinates.z = -1.0f;
 
-  // Note: inverted matrix needs to be transposed before applying the multiplication because it is in row major form rather than column major order! 
   Matrix4 inverse = projectionMatrix.calculateInverse();
-  inverse.transpose(); // TODO: double check this one again...
   std::vector<float> viewSpaceRaw(inverse.matrixVertMult(ndcCoordinates));
 
   assert(viewSpaceRaw.size() == 4);

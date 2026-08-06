@@ -264,7 +264,7 @@ float rotateSpeed = 60.0f;
 float timeSinceLastSwitch = 0.0f;
 Vector3 dirInputs;
 // world space coordinates
-Vector3 mainCamPosition(0.0f, 0.0f, 2.0f);
+Vector3 mainCamPosition(0.0f, 0.0f, -2.0f);
 SDL_AppResult SDL_AppIterate(void *appstate) {
 
   // code snippet to get delta time so triangle rotates and moves same rate no matter which computer hardware is used...
@@ -303,44 +303,12 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   //   }
   // }
 
-  // mouse interactions
-  float mouseX, mouseY;
-  SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mouseX, &mouseY);
 
-  bool isLeftMouseClick = mouseFlags & SDL_BUTTON_LMASK;
-  Matrix4 newLookAtMatrix = mainCamera.getViewMatrix();
-  if (isLeftMouseClick) {
-    std::cout << "mouse click screen coordinates: " << "(" << mouseX << ", " << mouseY << ")" << std::endl;
-
-    Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
-    std::cout << "view coords: " << viewCoords.x << ", " << viewCoords.y << ", " << viewCoords.z << "\n";
-
-    // magnify the look at rotation sensitivity
-    float strideFactor = 8.0f;
-    viewCoords.x *= strideFactor;
-    viewCoords.y *= strideFactor;
-    // viewCoords.normalize();
-
-    Vector3 targetPos = viewCoords;
-    Vector3 up(0.0f, 1.0f, 0.0f);
-    newLookAtMatrix = MathUtils::lookAt(mainCamPosition, targetPos, up);
-
-    // // 12, 13, 14 are the translation cells for x,y, and z for view camera space
-    // // this is temporarily and will be removed once I combine movement and looking around with a mouse
-    // newLookAtMatrix.cells[12] = mainCamera.getViewMatrix().cells[12];
-    // newLookAtMatrix.cells[13] = mainCamera.getViewMatrix().cells[13];
-    // newLookAtMatrix.cells[14] = mainCamera.getViewMatrix().cells[14];
-
-    Vector3 worldCoords = MathUtils::screenSpaceToWorldSpace(mouseX, mouseY, 10.0f, (float)WIDTH, (float)HEIGHT, near, far, mainCamera.getProjectionMatrix(), mainCamera.getViewMatrix(), true);
-
-    std::cout << "world  coords: " << worldCoords.x << ", " << worldCoords.y << ", " << worldCoords.z << "\n\n";
-  }
-
-  // Pan camera left and right -- inverted for the camera so the directions will be opposite
+  // Keyboard Moving Interactions
   if (keyStates[SDL_SCANCODE_A]) {
-    dirInputs.x = 1.0f;
-  } else if (keyStates[SDL_SCANCODE_D]) {
     dirInputs.x = -1.0f;
+  } else if (keyStates[SDL_SCANCODE_D]) {
+    dirInputs.x = 1.0f;
   } else {
     dirInputs.x = 0.0f;
   }
@@ -360,10 +328,32 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     dirInputs.normalize();
   }
 
-  // mainCamera.translate(dirInputs * speed * deltaTime);
-  Matrix4 translationMatrix = MathUtils::makeTranslationMatrix(dirInputs * speed * deltaTime);
-  Matrix4 newViewMatrix = newLookAtMatrix * translationMatrix;
-  mainCamera.setViewMatrix(newViewMatrix);
+  mainCamPosition += dirInputs * speed * deltaTime;
+  Matrix4 translationMat(MathUtils::makeTranslationMatrix(dirInputs * speed * deltaTime));
+
+  // mouse interactions
+  float mouseX, mouseY;
+  SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mouseX, &mouseY);
+
+  bool isLeftMouseClick = mouseFlags & SDL_BUTTON_LMASK;
+  Matrix4 newLookAtMatrix = mainCamera.getViewMatrix();
+  if (isLeftMouseClick) {
+    std::cout << "mouse click screen coordinates: " << "(" << mouseX << ", " << mouseY << ")" << std::endl;
+
+    Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
+    std::cout << "view coords: " << viewCoords.x << ", " << viewCoords.y << ", " << viewCoords.z << "\n";
+
+    Vector3 targetPos = viewCoords;
+    Vector3 up(0.0f, 1.0f, 0.0f);
+    newLookAtMatrix = MathUtils::lookAt(mainCamPosition, targetPos, up);
+
+    Vector3 worldCoords = MathUtils::screenSpaceToWorldSpace(mouseX, mouseY, 10.0f, (float)WIDTH, (float)HEIGHT, near, far, mainCamera.getProjectionMatrix(), mainCamera.getViewMatrix(), true);
+
+    std::cout << "world  coords: " << worldCoords.x << ", " << worldCoords.y << ", " << worldCoords.z << "\n\n";
+  }
+
+  newLookAtMatrix = newLookAtMatrix * translationMat;
+  mainCamera.setViewMatrix(newLookAtMatrix);
 
   auto viewMatT = mainCamera.getViewMatrix();
   auto projMatT = mainCamera.getProjectionMatrix();
