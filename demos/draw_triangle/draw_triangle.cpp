@@ -343,6 +343,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
     std::cout << "view coords: " << viewCoords.x << ", " << viewCoords.y << ", " << viewCoords.z << "\n";
 
+    Vector3 worldDirection = MathUtils::screenSpaceToWorldDirection(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix(), mainCamera.getViewMatrix());
+    std::cout << "world direction: " << worldDirection.x << "," << worldDirection.y << "," << worldDirection.z << "\n\n";
+
     Vector3 targetPos = viewCoords;
     Vector3 up(0.0f, 1.0f, 0.0f);
     newLookAtMatrix = MathUtils::lookAt(mainCamPosition, targetPos, up);

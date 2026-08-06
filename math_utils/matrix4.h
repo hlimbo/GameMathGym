@@ -129,8 +129,8 @@ namespace MathUtils {
       - In SDL3, screen coordinates on y-axis are inverted. Top left corner is (0,0) and bottom right corner is (width, height)
   
     Parameters:
-    - x - x-axis coordinates in screen space
-    - y - y-axis coordinates in screen space
+    - x - x-axis coordinates in screen space (measured in pixels)
+    - y - y-axis coordinates in screen space (measured in pixels)
     - z - z represents the distance from the camera in world units (eye distance)
     - width - screen width in pixels
     - height - screen height in pixels
@@ -140,8 +140,22 @@ namespace MathUtils {
     - viewMatrix - camera's view matrix
     - isPerspective - if true, it is using a perspective projection matrix; false it defaults to an orthographic projection matrix
 
+    Converts screen space to world space coordinates
   */
   Vector3 screenSpaceToWorldSpace(float x, float y, float z, float width, float height, float near, float far, const Matrix4& projectionMatrix, const Matrix4& viewMatrix, bool isPerspective);
+
+  /*
+    Parameters:
+    - x - x-axis coordinates in screen space (measured in pixels)
+    - y - y-axis coordinates in screen space (measured in pixels)
+    - width - screen width in pixels
+    - height - screen height in pixels
+    - projectionMatrix - Matrix4
+    - viewMatrix - Matrix4
+
+    Returns a unit vector pointing towards the game world from screen space coordinates
+  */
+  Vector3 screenSpaceToWorldDirection(float x, float y, float width, float height, const Matrix4& projectionMatrix, const Matrix4& viewMatrix);
 
   constexpr Matrix4 MAT4_IDENTITY({
       1.0f, 0.0f, 0.0f, 0.0f,

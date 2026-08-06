@@ -408,3 +408,29 @@ Vector3 MathUtils::screenSpaceToWorldSpace(float x, float y, float z, float widt
 
   return worldSpaceCoordinates;
 }
+
+Vector3 MathUtils::screenSpaceToWorldDirection(float x, float y, float width, float height, const Matrix4& projectionMatrix, const Matrix4& viewMatrix) {  
+  Vector3 ndcCoordinates(MathUtils::convertFromScreenSpaceToNDC(x, y, width, height));
+  
+  Matrix4 projViewMat(projectionMatrix * viewMatrix);
+  Matrix4 invMat(projViewMat.calculateInverse());
+
+  Vector3 nearClipNdc(ndcCoordinates.x, ndcCoordinates.y, -1.0f);
+  Vector3 farClipNdc(ndcCoordinates.x, ndcCoordinates.y, 1.0f);
+  
+  std::vector<float> nearPosition = invMat.matrixVertMult(nearClipNdc, 1.0f);
+  std::vector<float> farPosition = invMat.matrixVertMult(farClipNdc, 1.0f);
+
+  assert(nearPosition.size() == 4);
+  assert(farPosition.size() == 4);
+  assert(nearPosition[3] != 0.0f);
+  assert(farPosition[3] != 0.0f);
+
+  float w = nearPosition[3];
+  Vector3 nearPos(nearPosition[0] / w, nearPosition[1] / w, nearPosition[2] / w);
+  w = farPosition[3];
+  Vector3 farPos(farPosition[0] / w, farPosition[1] / w, farPosition[2] / w);
+
+  Vector3 worldDirection = (farPos - nearPos).normalized();
+  return worldDirection;
+}
