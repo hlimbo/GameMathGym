@@ -16,14 +16,6 @@
 
 #include "utils/shader_utils.h"
 
-#ifdef __EMSCRIPTEN__
-  const char* versionHeader = "#version 300 es\n";
-  const char* glslPrecision = "precision mediump float;\n"; // 16-bit floats supported on web
-#else
-  const char* versionHeader = "#version 330 core\n";
-  const char* glslPrecision = "";
-#endif
-
 const char* WINDOW_NAME = "Textures Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
@@ -57,27 +49,13 @@ const char* fragSrc = "shaders/texture.frag";
 
 void InitializeTriangle() {
   // Load in Vertex and Fragment Shaders
-  std::string vertexCodeStr(ShaderUtils::LoadShaderSource(vertexSrc));
-  std::string  fragShaderStr(ShaderUtils::LoadShaderSource(fragSrc));
-
-  const char* vertexCodeArr[2] { versionHeader, vertexCodeStr.c_str() };
-  const char* fragShaderArr[3] { versionHeader, glslPrecision, fragShaderStr.c_str() };
-
-  vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShader, 2, vertexCodeArr,  NULL);
-  glCompileShader(vertexShader);
-
-  fragShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragShader, 3, fragShaderArr, NULL);
-  glCompileShader(fragShader);
+  vertexShader = ShaderUtils::LoadAndCreateShaderSource(vertexSrc, GL_VERTEX_SHADER);
+  fragShader = ShaderUtils::LoadAndCreateShaderSource(fragSrc, GL_FRAGMENT_SHADER);
 
   ShaderUtils::VerifyShaderCompilationStatus(vertexShader, vertexSrc);
   ShaderUtils::VerifyShaderCompilationStatus(fragShader, fragSrc);
 
-  shaderProgram = glCreateProgram();
-  glAttachShader(shaderProgram, vertexShader);
-  glAttachShader(shaderProgram, fragShader);
-  glLinkProgram(shaderProgram);
+  shaderProgram = ShaderUtils::CreateShaderProgram(vertexShader, fragShader);
 
   ShaderUtils::VerifyShaderProgramLinkStatus(shaderProgram);
 

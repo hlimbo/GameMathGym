@@ -11,8 +11,10 @@
 
 namespace ShaderUtils {
   std::string LoadShaderSource(const std::string& filePath);
+  GLuint LoadAndCreateShaderSource(const std::string& filePath, GLenum shaderType);
   void VerifyShaderCompilationStatus(GLuint shaderHandle, const std::string& shaderFilePath);
   void VerifyShaderProgramLinkStatus(GLuint shaderProgram);
+  GLuint CreateShaderProgram(GLuint vertexShaderId, GLuint fragShaderId);
 }
 
 

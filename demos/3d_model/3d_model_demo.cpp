@@ -29,14 +29,6 @@
 
 #include "utils/shader_utils.h"
 
-#ifdef __EMSCRIPTEN__
-  const char* versionHeader = "#version 300 es\n";
-  const char* glslPrecision = "precision mediump float;\nprecision mediump sampler2DArray;\n"; // 16-bit floats supported on web
-#else
-  const char* versionHeader = "#version 330 core\n";
-  const char* glslPrecision = "";
-#endif
-
 const char* WINDOW_NAME = "3D Model Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
@@ -144,33 +136,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   }
 
   // Load Shader Program
-  std::string vertCodeStr(ShaderUtils::LoadShaderSource(vertShaderSrc));
-  const char* vertCodeArr[2] = {
-    versionHeader,
-    vertCodeStr.c_str()
-  };
+  vertexShader = ShaderUtils::LoadAndCreateShaderSource(vertShaderSrc, GL_VERTEX_SHADER);
+  fragShader = ShaderUtils::LoadAndCreateShaderSource(fragShaderSrc, GL_FRAGMENT_SHADER);
 
-  std::string fragCodeStr(ShaderUtils::LoadShaderSource(fragShaderSrc));
-  const char* fragCodeArr[3] = {
-    versionHeader,
-    glslPrecision,
-    fragCodeStr.c_str()
-  };
-
-  vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShader, 2, vertCodeArr, NULL);
-  glCompileShader(vertexShader);
   ShaderUtils::VerifyShaderCompilationStatus(vertexShader, vertShaderSrc);
-
-  fragShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragShader, 3, fragCodeArr, NULL);
-  glCompileShader(fragShader);
   ShaderUtils::VerifyShaderCompilationStatus(fragShader, fragShaderSrc);
 
-  shaderProgram = glCreateProgram();
-  glAttachShader(shaderProgram, vertexShader);
-  glAttachShader(shaderProgram, fragShader);
-  glLinkProgram(shaderProgram);
+  shaderProgram = ShaderUtils::CreateShaderProgram(vertexShader, fragShader);
   ShaderUtils::VerifyShaderProgramLinkStatus(shaderProgram);
 
   // no longer need shader objects
