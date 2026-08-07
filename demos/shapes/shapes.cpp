@@ -37,7 +37,6 @@ unsigned int quadIndices[] = {
   2, 3, 1
 };
 
-// TODO: use 24 vertices instead of 8 for when implementing lighting models and when I would like each face to have a distinct color
 float cubeVertices[] = {
   -1.0f, 1.0f, 1.0f,      // front top left
   0.0f, 0.0, 1.0f, 1.0f,  // blue
@@ -86,6 +85,95 @@ unsigned int cubeIndices[] = {
   // Bot Face
   6, 7, 2,
   2, 7, 3
+};
+
+/* 24 vertices cube */
+float cube24Vertices[] = {
+  // front face
+  -0.5f, 0.5f, 0.5f,
+   1.0f, 0.0f, 0.0f, 1.0f, // red
+   0.5f, 0.5f, 0.5f,
+   1.0f, 0.0f, 0.0f, 1.0f, // red
+  -0.5f, -0.5f, 0.5f,
+   1.0f, 0.0f, 0.0f, 1.0f, // red
+   0.5f, -0.5f, 0.5f,
+   1.0f, 0.0f, 0.0f, 1.0f, //red
+
+  // back face
+  -0.5f, 0.5f, -0.5f,
+  0.0f, 1.0f, 0.0f, 1.0f, // green
+  0.5f, 0.5f, -0.5f,
+  0.0f, 1.0f, 0.0f, 1.0f, // green
+  -0.5f, -0.5f, -0.5f,
+  0.0f, 1.0f, 0.0f, 1.0f, // green
+  0.5f, -0.5f, -0.5f,
+  0.0f, 1.0f, 0.0f, 1.0f, // green
+
+  //left face
+  -0.5f, 0.5f, 0.5f,
+  0.0f, 0.0f, 1.0f, 1.0f, // blue
+  -0.5f, 0.5f, -0.5f,
+  0.0f, 0.0f, 1.0f, 1.0f, // blue
+  -0.5f, -0.5f, 0.5f,
+  0.0f, 0.0f, 1.0f, 1.0f, // blue
+  -0.5f, -0.5f, -0.5f,
+  0.0f, 0.0f, 1.0f, 1.0f, // blue
+
+  // right face
+  0.5f, 0.5f, 0.5f,
+  1.0f, 0.0f, 1.0f, 1.0f, // purple
+  0.5f, 0.5f, -0.5f,
+  1.0f, 0.0f, 1.0f, 1.0f, // purple
+  0.5f, -0.5f, 0.5f,
+  1.0f, 0.0f, 1.0f, 1.0f, // purple
+  0.5f, -0.5f, -0.5f,
+  1.0f, 0.0f, 1.0f, 1.0f, // purple
+
+  // top face
+  -0.5f, 0.5f, 0.5f,
+  1.0f, 1.0f, 0.0f, 1.0f, // yellow
+  0.5f, 0.5f, 0.5f,
+  1.0f, 1.0f, 0.0f, 1.0f, // yellow
+  -0.5f, 0.5f, -0.5f,
+  1.0f, 1.0f, 0.0f, 1.0f, // yellow
+  0.5f, 0.5f, -0.5f,
+  1.0f, 1.0f, 0.0f, 1.0f, // yellow
+
+  // bottom face
+  -0.5f, -0.5f, 0.5f,
+  0.32f, 0.5f, 0.32f, 1.0f, // color
+  0.5f, -0.5f, 0.5f,
+  0.32f, 0.5f, 0.32f, 1.0f, // color
+  -0.5f, -0.5f, -0.5f,
+  0.32f, 0.5f, 0.32f, 1.0f, // color
+  0.5f, -0.5f, -0.5f,
+  0.32f, 0.5f, 0.32f, 1.0f, // color
+};
+
+unsigned int cube24Indices[] = {
+  // front face
+  1, 0, 2,
+  3, 1, 2,
+
+  // Back Face
+  4, 5, 6,
+  6, 5, 7,
+
+  // Left Face
+  8, 9, 11,
+  10, 8, 11,
+
+  // Right Face
+  13, 12, 14,
+  14, 13, 15,
+
+  // Top Face
+  19, 18, 16,
+  19, 16, 17,
+
+  // Bot Face
+  23, 22, 20,
+  23, 20, 21
 };
 
 /* ----------------- End Shapes ----------------- */
@@ -188,7 +276,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube24Vertices), &cube24Vertices[0], GL_STATIC_DRAW);
 
     GLsizei vertexPositionStride = 7 * sizeof(float);
     // Vertex Position at Location 0
@@ -200,12 +288,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)(sizeof(float) * 3));
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubeIndices), &cubeIndices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube24Indices), &cube24Indices[0], GL_STATIC_DRAW);
 
     // unbind VBO
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // unbind VAO
     glBindVertexArray(0);
+    // unbind EBO
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
   /* Setup Keyboard Controls */
@@ -304,8 +394,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
 
   glBindVertexArray(VAO);
-  glDrawElements(GL_TRIANGLES, sizeof(cubeIndices), GL_UNSIGNED_INT, 0);
+  //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+  glDrawElements(GL_TRIANGLES, sizeof(cube24Indices), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
+  //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   SDL_GL_SwapWindow(win);
   return SDL_APP_CONTINUE;
