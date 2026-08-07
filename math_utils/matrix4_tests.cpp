@@ -505,6 +505,34 @@ TEST(Matrix4Tests, VerifyScreenToWorldCoordinates)
   EXPECT_NEAR(mouseY, screenY, tolerance);
 }
 
+TEST(Matrix4Tests, VerifyScreenSpaceToViewSpace)
+{
+  float x = 200.0f, y = 8.0f;
+  float width = 1920.0f, height = 1080.0f;
+
+  float aspect = width / height;
+  float fov = 90.0f;
+  float near = 0.1f, far = 100.0f;
+  Matrix4 perspectiveMat = MathUtils::createPerspectiveMatrix(aspect, fov, near, far);
+
+  Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(x, y, width, height, perspectiveMat);
+
+  float w = 1.0f;
+  std::vector<float> clipCoords = perspectiveMat.matrixVertMult(viewCoords, w);
+
+  EXPECT_TRUE(clipCoords.size() == 4);
+  EXPECT_TRUE(clipCoords[3] != 0.0f);
+
+  Vector3 ndcCoords(clipCoords[0] / clipCoords[3], clipCoords[1] / clipCoords[3], clipCoords[2] / clipCoords[3]);
+
+  // convert from ndc to screen space
+  float screenX = (width * (ndcCoords.x + 1.0f)) / 2.0f;
+  float screenY = height - ((height * (ndcCoords.y + 1.0f)) / 2.0f);
+  float tolerance = 0.001f;
+  EXPECT_NEAR(x, screenX, tolerance);
+  EXPECT_NEAR(y, screenY, tolerance);
+}
+
 TEST(Matrix4Tests, LookAtFunctionTests)
 {
   Vector3 srcPosition(0.0f, 0.0f, 0.0f);
@@ -513,9 +541,9 @@ TEST(Matrix4Tests, LookAtFunctionTests)
 
   Matrix4 newViewMatrix = MathUtils::lookAt(srcPosition, targetPosition, up);
 
-  Vector3 xBasis(newViewMatrix[0], newViewMatrix[1], newViewMatrix[2]);
-  Vector3 yBasis(newViewMatrix[4], newViewMatrix[5], newViewMatrix[6]);
-  Vector3 zBasis(newViewMatrix[8], newViewMatrix[9], newViewMatrix[10]);
+  Vector3 xBasis(newViewMatrix[0], newViewMatrix[4], newViewMatrix[8]);
+  Vector3 yBasis(newViewMatrix[1], newViewMatrix[5], newViewMatrix[9]);
+  Vector3 zBasis(newViewMatrix[2], newViewMatrix[6], newViewMatrix[10]);
 
   // Verify Basis Vectors are Orthonormal
   EXPECT_FLOAT_EQ(1.0f, xBasis.magnitude());
@@ -528,8 +556,8 @@ TEST(Matrix4Tests, LookAtFunctionTests)
   EXPECT_FLOAT_EQ(0.0f, zBasis.dot(xBasis));
 
   // Verify handedness consistency
-  Vector3 rightBasis(zBasis.cross(yBasis));
-  Vector3 upBasis(xBasis.cross(zBasis));
+  Vector3 rightBasis(yBasis.cross(zBasis));
+  Vector3 upBasis(zBasis.cross(xBasis));
 
   EXPECT_FLOAT_EQ(xBasis.x, rightBasis.x);
   EXPECT_FLOAT_EQ(xBasis.y, rightBasis.y);

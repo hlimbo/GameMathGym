@@ -306,7 +306,7 @@ Matrix4 MathUtils::createPerspectiveMatrix(float aspect, float fov, float n, flo
 
 // Column Major order
 Matrix4 MathUtils::lookAt(const Vector3& srcPosition, const Vector3& targetPosition, const Vector3& up) {
-  Vector3 forwardBasis(targetPosition - srcPosition);
+  Vector3 forwardBasis(srcPosition - targetPosition);
   forwardBasis.normalize();
 
   Vector3 upCopy(up);
@@ -319,25 +319,24 @@ Matrix4 MathUtils::lookAt(const Vector3& srcPosition, const Vector3& targetPosit
     }
   }
 
-  Vector3 rightBasis(forwardBasis.cross(upCopy));
+  Vector3 rightBasis(upCopy.cross(forwardBasis));
   rightBasis.normalize();
 
-  Vector3 upBasis(rightBasis.cross(forwardBasis));
+  Vector3 upBasis(forwardBasis.cross(rightBasis));
   upBasis.normalize();
 
-  float translationX = rightBasis.dot(srcPosition) * -1.0f;
-  float translationY = upBasis.dot(srcPosition) * -1.0f;
-  float translationZ = forwardBasis.dot(srcPosition);
+  float translationX = -rightBasis.dot(srcPosition);
+  float translationY = -upBasis.dot(srcPosition);
+  float translationZ = -forwardBasis.dot(srcPosition);
 
   return Matrix4({
-    rightBasis.x,     rightBasis.y,     rightBasis.z,     0.0f,
-    upBasis.x,        upBasis.y,        upBasis.z,        0.0f,
-    forwardBasis.x,   forwardBasis.y,   forwardBasis.z,  0.0f,
+    rightBasis.x,        upBasis.x,     forwardBasis.x,   0.0f,
+    rightBasis.y,        upBasis.y,     forwardBasis.y,   0.0f,
+    rightBasis.z,        upBasis.z,     forwardBasis.z,   0.0f,
     translationX,     translationY,     translationZ,     1.0f
   });
 }
 
-// TODO: fix this computation!
 // TODO: read up on glReadPixels as its primary use case is to allow me to select objects on screen where the gpu will at the depth buffer information at me at that point...
 Vector3 MathUtils::screenSpaceToViewSpace(float x, float y, float width, float height, const Matrix4& projectionMatrix) {
   Vector3 ndcCoordinates = MathUtils::convertFromScreenSpaceToNDC(x, y, width, height);

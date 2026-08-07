@@ -165,21 +165,49 @@ unsigned int cube24Indices[] = {
 
   // Right Face
   13, 12, 14,
-  14, 13, 15,
+  15, 13, 14,
+  //14, 13, 15,
 
   // Top Face
   19, 18, 16,
   19, 16, 17,
 
   // Bot Face
-  23, 22, 20,
-  23, 20, 21
+  20, 22, 23,
+  20, 23, 21
 };
+
+// OpenGL default winding order is counter clockwise for the vertices
+// unsigned int cube24Indices[] = {
+//   // front face
+//   0, 1, 2,
+//   1, 2, 3,
+
+//   // Back Face
+//   4, 5, 6,
+//   6, 5, 7,
+
+//   // Left Face
+//   8, 11, 9,
+//   8, 10, 11,
+
+//   // Right Face
+//   12, 14, 13,
+//   13, 14, 15,
+
+//   // Top Face
+//   16, 17, 18,
+//   18, 17, 19,
+
+//   // Bottom Face
+//   20, 22, 21,
+//   21, 22, 23
+// };
 
 /* ----------------- End Shapes ----------------- */
 
 
-MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -5.0f)));
+MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -2.0f)));
 
 const float ASPECT = (float)WIDTH / (float)HEIGHT;
 const float FOV_DEGREES = 90.0f;
@@ -295,7 +323,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     // unbind VAO
     glBindVertexArray(0);
     // unbind EBO
-    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
   /* Setup Keyboard Controls */
@@ -304,7 +332,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   // Draw vertices that are facing in front of camera and vertices behind other vertices are culled away
   glEnable(GL_DEPTH_TEST);
   // discards triangles facing away from camera
-  // glEnable(GL_CULL_FACE);
+  glEnable(GL_CULL_FACE);
 
 
   return SDL_APP_CONTINUE;
@@ -337,9 +365,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   /* Keyboard Controls */
   if (keyStates[SDL_SCANCODE_A]) {
-    dirInputs.x = -1.0f;
-  } else if (keyStates[SDL_SCANCODE_D]) {
     dirInputs.x = 1.0f;
+  } else if (keyStates[SDL_SCANCODE_D]) {
+    dirInputs.x = -1.0f;
   } else {
     dirInputs.x = 0.0f;
   }
@@ -360,20 +388,33 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   mainCamPosition += velocity;
 
   /* Mouse Controls */
-  float mouseX, mouseY;
-  SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mouseX, &mouseY);
-  bool isLeftMouseClick = mouseFlags & SDL_BUTTON_LMASK;
-  MathUtils::Matrix4 newLookAtMatrix(mainCamera.getViewMatrix());
-  if (isLeftMouseClick) {
-    MathUtils::Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
+  // float mouseX, mouseY;
+  // SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mouseX, &mouseY);
+  // bool isLeftMouseClick = mouseFlags & SDL_BUTTON_LMASK;
+  // MathUtils::Matrix4 newLookAtMatrix(mainCamera.getViewMatrix());
+  // if (isLeftMouseClick) {
+  //   MathUtils::Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
+  //   MathUtils::Vector3 worldCoords = MathUtils::screenSpaceToWorldSpace(mouseX, mouseY, 0.1f, (float)WIDTH, (float)HEIGHT, NEAR, FAR, mainCamera.getProjectionMatrix(), mainCamera.getViewMatrix(), true);
 
-    MathUtils::Vector3 up(0.0f, 1.0f, 0.0f);
-    newLookAtMatrix = MathUtils::lookAt(mainCamPosition, viewCoords, up);
-  }
 
-  MathUtils::Matrix4 translationMat(MathUtils::makeTranslationMatrix(velocity));
-  newLookAtMatrix = newLookAtMatrix * translationMat;
-  mainCamera.setViewMatrix(newLookAtMatrix);
+  //   MathUtils::Vector3 up(0.0f, 1.0f, 0.0f);
+  //   newLookAtMatrix = MathUtils::lookAt(mainCamPosition, mainCamPosition + viewCoords, up);
+  // }
+
+  // MathUtils::Matrix4 translationMat(MathUtils::makeTranslationMatrix(velocity));
+  // newLookAtMatrix = newLookAtMatrix * translationMat;
+  // mainCamera.setViewMatrix(newLookAtMatrix);
+
+  /* Rotate Around the cube in world space */
+  MathUtils::Vector3 targetPosition(0.0f, 0.0f, -2.0f);
+  float radius = 4.0f;
+  float angle = std::fmod(static_cast<float>(currentTime) / SDL_MS_PER_SECOND, 6.28318530718f);
+  float camX = static_cast<float>(std::sin(angle) * radius) + targetPosition.x;
+  float camZ = static_cast<float>(std::cos(angle) * radius) + targetPosition.z;
+  MathUtils::Vector3 srcPosition(camX, camX, camZ);
+  MathUtils::Vector3 worldUp(0.0f, 1.0f, 0.0f);
+  MathUtils::Matrix4 newViewMat = MathUtils::lookAt(srcPosition, targetPosition, worldUp);
+  mainCamera.setViewMatrix(newViewMat);
 
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -394,10 +435,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
 
   glBindVertexArray(VAO);
-  //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glDrawElements(GL_TRIANGLES, sizeof(cube24Indices), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
-  //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   SDL_GL_SwapWindow(win);
   return SDL_APP_CONTINUE;
