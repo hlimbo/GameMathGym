@@ -504,3 +504,38 @@ TEST(Matrix4Tests, VerifyScreenToWorldCoordinates)
   EXPECT_NEAR(mouseX, screenX, tolerance);
   EXPECT_NEAR(mouseY, screenY, tolerance);
 }
+
+TEST(Matrix4Tests, LookAtFunctionTests)
+{
+  Vector3 srcPosition(0.0f, 0.0f, 0.0f);
+  Vector3 targetPosition(0.0f, 0.0f, 10.0f);
+  Vector3 up(0.0f, 1.0f, 0.0f);
+
+  Matrix4 newViewMatrix = MathUtils::lookAt(srcPosition, targetPosition, up);
+
+  Vector3 xBasis(newViewMatrix[0], newViewMatrix[1], newViewMatrix[2]);
+  Vector3 yBasis(newViewMatrix[4], newViewMatrix[5], newViewMatrix[6]);
+  Vector3 zBasis(newViewMatrix[8], newViewMatrix[9], newViewMatrix[10]);
+
+  // Verify Basis Vectors are Orthonormal
+  EXPECT_FLOAT_EQ(1.0f, xBasis.magnitude());
+  EXPECT_FLOAT_EQ(1.0f, yBasis.magnitude());
+  EXPECT_FLOAT_EQ(1.0f, zBasis.magnitude());
+
+  // Verify Each Basis Vector is Perpendicular via Dot Product
+  EXPECT_FLOAT_EQ(0.0f, xBasis.dot(yBasis));
+  EXPECT_FLOAT_EQ(0.0f, yBasis.dot(zBasis));
+  EXPECT_FLOAT_EQ(0.0f, zBasis.dot(xBasis));
+
+  // Verify handedness consistency
+  Vector3 rightBasis(zBasis.cross(yBasis));
+  Vector3 upBasis(xBasis.cross(zBasis));
+
+  EXPECT_FLOAT_EQ(xBasis.x, rightBasis.x);
+  EXPECT_FLOAT_EQ(xBasis.y, rightBasis.y);
+  EXPECT_FLOAT_EQ(xBasis.z, rightBasis.z);
+
+  EXPECT_FLOAT_EQ(yBasis.x, upBasis.x);
+  EXPECT_FLOAT_EQ(yBasis.y, upBasis.y);
+  EXPECT_FLOAT_EQ(yBasis.z, upBasis.z);
+}
