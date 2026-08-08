@@ -10,6 +10,7 @@
 #include <SDL3/SDL_opengl.h>
 
 #include <iostream>
+#include <cmath>
 
 #include "utils/shader_utils.h"
 #include "math_utils/matrix4.h"
@@ -348,10 +349,19 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
 }
 
 MathUtils::Vector3 dirInputs;
-MathUtils::Vector3 mainCamPosition(0.0f, 0.0f, -2.0f);
+MathUtils::Vector3 mainCamPosition(0.0f, 0.0f, 5.0f);
+MathUtils::Vector3 camFront(0.0f, 0.0f, -1.0f);
+MathUtils::Vector3 camUp(0.0f, 1.0f, 0.0f);
 float speed = 2.0f;
 // measured in milliseconds
 Uint64 currentTime, lastTime = 0;
+
+// Mouse Camera Controls
+float mX = 0.0f, mY = 0.0f;
+float lastMX = 0.0f, lastMY = 0.0f;
+float yaw = 0.0f, pitch = 0.0f;
+bool isFirstMouse = true;
+float mouseSensitivity = 0.025f;
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
   currentTime = SDL_GetTicks();
@@ -364,28 +374,28 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   lastTime = currentTime;
 
   /* Keyboard Controls */
-  if (keyStates[SDL_SCANCODE_A]) {
-    dirInputs.x = 1.0f;
-  } else if (keyStates[SDL_SCANCODE_D]) {
-    dirInputs.x = -1.0f;
-  } else {
-    dirInputs.x = 0.0f;
-  }
+  // if (keyStates[SDL_SCANCODE_A]) {
+  //   dirInputs.x = 1.0f;
+  // } else if (keyStates[SDL_SCANCODE_D]) {
+  //   dirInputs.x = -1.0f;
+  // } else {
+  //   dirInputs.x = 0.0f;
+  // }
 
-  if (keyStates[SDL_SCANCODE_W]) {
-    dirInputs.z = 1.0f;
-  } else if (keyStates[SDL_SCANCODE_S]) {
-    dirInputs.z = -1.0f;
-  } else {
-    dirInputs.z = 0.0f;
-  }
+  // if (keyStates[SDL_SCANCODE_W]) {
+  //   dirInputs.z = 1.0f;
+  // } else if (keyStates[SDL_SCANCODE_S]) {
+  //   dirInputs.z = -1.0f;
+  // } else {
+  //   dirInputs.z = 0.0f;
+  // }
 
-  if (dirInputs.sqrMagnitude() != 0.0f) {
-    dirInputs.normalize();
-  }
+  // if (dirInputs.sqrMagnitude() != 0.0f) {
+  //   dirInputs.normalize();
+  // }
 
-  MathUtils::Vector3 velocity(dirInputs * speed * deltaTime);
-  mainCamPosition += velocity;
+  // MathUtils::Vector3 velocity(dirInputs * speed * deltaTime);
+  // mainCamPosition += velocity;
 
   /* Mouse Controls */
   // float mouseX, mouseY;
@@ -405,16 +415,81 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   // newLookAtMatrix = newLookAtMatrix * translationMat;
   // mainCamera.setViewMatrix(newLookAtMatrix);
 
-  /* Rotate Around the cube in world space */
-  MathUtils::Vector3 targetPosition(0.0f, 0.0f, -2.0f);
-  float radius = 4.0f;
-  float angle = std::fmod(static_cast<float>(currentTime) / SDL_MS_PER_SECOND, 6.28318530718f);
-  float camX = static_cast<float>(std::sin(angle) * radius) + targetPosition.x;
-  float camZ = static_cast<float>(std::cos(angle) * radius) + targetPosition.z;
-  MathUtils::Vector3 srcPosition(camX, camX, camZ);
-  MathUtils::Vector3 worldUp(0.0f, 1.0f, 0.0f);
-  MathUtils::Matrix4 newViewMat = MathUtils::lookAt(srcPosition, targetPosition, worldUp);
+  /* Walking Around Camera */
+  // Camera View Around based on pitch and yaw degree values
+  SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mX, &mY);
+  bool isLeftMouseClicked = mouseFlags & SDL_BUTTON_LMASK;
+  if (isLeftMouseClicked) {
+
+    if (isFirstMouse) {
+      lastMX = mX;
+      lastMY = mY;
+      isFirstMouse = false;
+    }
+
+    float xOffset = mX - lastMX;
+    float yOffset = mY - lastMY;
+    lastMX = mX;
+    lastMY = mY;
+
+    yaw += xOffset * mouseSensitivity;
+    pitch += yOffset * mouseSensitivity;
+
+    // make sure when pitch is out of bounds, screen doesn't flip
+    if (pitch > 89.0f) {
+      pitch = 89.0f;
+    }
+    if (pitch < -89.0f) {
+      pitch = -89.0f;
+    }
+    
+    // reorient which way camera front is facing based on pitch and yaw
+    float deg2Rad = (MathUtils::PI / 180.0f);
+    MathUtils::Vector3 front(
+      std::cos(deg2Rad * yaw) * std::cos(deg2Rad * pitch),
+      std::sin(deg2Rad * pitch),
+      std::sin(deg2Rad * yaw) * std::cos(deg2Rad * pitch)
+    );
+    front.normalize();
+    camFront = front;
+  }
+
+  // cross product is used here to ensure when the camera's orientation changes moving laterally remains consistent
+  dirInputs = MathUtils::Vector3(0.0f, 0.0f, 0.0f);
+  if (keyStates[SDL_SCANCODE_A]) {
+    dirInputs -= camFront.cross(camUp);
+  } else if (keyStates[SDL_SCANCODE_D]) {
+    dirInputs += camFront.cross(camUp);
+  }
+
+  if (keyStates[SDL_SCANCODE_W]) {
+    dirInputs += camFront;
+  } else if (keyStates[SDL_SCANCODE_S]) {
+    dirInputs -= camFront;
+  }
+
+  if (dirInputs.sqrMagnitude() != 0.0f) {
+    dirInputs.normalize();
+  }
+
+  MathUtils::Vector3 velocity(dirInputs * speed * deltaTime);
+  mainCamPosition += velocity;
+
+  MathUtils::Matrix4 newViewMat(MathUtils::lookAt(mainCamPosition, mainCamPosition + camFront, camUp));
+
+  newViewMat = newViewMat * MathUtils::makeTranslationMatrix(velocity);
   mainCamera.setViewMatrix(newViewMat);
+
+  /* Rotate Around the cube in world space */
+  // MathUtils::Vector3 targetPosition(0.0f, 0.0f, -2.0f);
+  // float radius = 4.0f;
+  // float angle = std::fmod(static_cast<float>(currentTime) / SDL_MS_PER_SECOND, 6.28318530718f);
+  // float camX = static_cast<float>(std::sin(angle) * radius) + targetPosition.x;
+  // float camZ = static_cast<float>(std::cos(angle) * radius) + targetPosition.z;
+  // MathUtils::Vector3 srcPosition(camX, camX, camZ);
+  // MathUtils::Vector3 worldUp(0.0f, 1.0f, 0.0f);
+  // MathUtils::Matrix4 newViewMat = MathUtils::lookAt(srcPosition, targetPosition, worldUp);
+  // mainCamera.setViewMatrix(newViewMat);
 
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
