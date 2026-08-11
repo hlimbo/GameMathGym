@@ -178,43 +178,28 @@ unsigned int cube24Indices[] = {
   20, 23, 21
 };
 
-// OpenGL default winding order is counter clockwise for the vertices
-// unsigned int cube24Indices[] = {
-//   // front face
-//   0, 1, 2,
-//   1, 2, 3,
-
-//   // Back Face
-//   4, 5, 6,
-//   6, 5, 7,
-
-//   // Left Face
-//   8, 11, 9,
-//   8, 10, 11,
-
-//   // Right Face
-//   12, 14, 13,
-//   13, 14, 15,
-
-//   // Top Face
-//   16, 17, 18,
-//   18, 17, 19,
-
-//   // Bottom Face
-//   20, 22, 21,
-//   21, 22, 23
-// };
+std::vector<float> generateUnitCircleCoordinates(int sectorCount);
+std::vector<float> createCylinderVertices(int sectorCount, float topRadius, float bottomRadius, float height);
+std::vector<unsigned int> createCylinderIndices(int sectorCount);
+std::vector<float> createCircleVertices(int sectorCount, float radius, float zDepth);
+std::vector<unsigned int> createCircleIndices(int sectorCount);
 
 /* ----------------- End Shapes ----------------- */
 
 
-MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -2.0f)));
+MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -4.0f)));
 
 const float ASPECT = (float)WIDTH / (float)HEIGHT;
 const float FOV_DEGREES = 90.0f;
 const float NEAR = 0.1f;
 const float FAR = 1000.0f;
 Core::Camera mainCamera((float)WIDTH, (float)HEIGHT, FOV_DEGREES, NEAR, FAR);
+
+int sectorCount = 32;
+float radius = 1.0f;
+float height = 4.0f;
+std::vector<float> cylinderVertices;
+std::vector<unsigned int> cylinderIndices;
 
 GLuint shaderProgramId;
 
@@ -279,10 +264,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     std::cout << "Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
   }
 
+  /* Generate Cylinder Vertices and Indices */
+  {
+    cylinderVertices = createCylinderVertices(sectorCount, radius, radius, height);
+    cylinderIndices = createCylinderIndices(sectorCount);
+  }
+
   /* Shader Initialization */
   {
-    std::string vertShaderSrc("shaders/cube.vert");
-    std::string fragShaderSrc("shaders/cube.frag");
+    std::string vertShaderSrc("shaders/cylinder.vert");
+    std::string fragShaderSrc("shaders/cylinder.frag");
     GLuint vertexShaderId = ShaderUtils::LoadAndCreateShaderSource(vertShaderSrc, GL_VERTEX_SHADER);
     GLuint fragShaderId = ShaderUtils::LoadAndCreateShaderSource(fragShaderSrc, GL_FRAGMENT_SHADER);
 
@@ -305,26 +296,39 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube24Vertices), &cube24Vertices[0], GL_STATIC_DRAW);
+    /* Cylinder Buffer Data Initialization */
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * cylinderVertices.size(), cylinderVertices.data(), GL_STATIC_DRAW);
 
-    GLsizei vertexPositionStride = 7 * sizeof(float);
-    // Vertex Position at Location 0
+    GLsizei vertexPositionStride = 3 * sizeof(float);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
 
-    //Vertex Color at Location 1
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)(sizeof(float) * 3));
-
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube24Indices), &cube24Indices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * cylinderIndices.size(), cylinderIndices.data(), GL_STATIC_DRAW);
 
-    // unbind VBO
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    
+    /* Cube Buffer Data Initialization */
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(cube24Vertices), cube24Vertices, GL_STATIC_DRAW);
+    
+    // GLsizei vertexPositionStride = 7 * sizeof(float);
+    // // Vertex Position at Location 0
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
+
+    // //Vertex Color at Location 1
+    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)(sizeof(float) * 3));
+
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube24Indices), cube24Indices, GL_STATIC_DRAW);
+
+
     // unbind VAO
     glBindVertexArray(0);
     // unbind EBO
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    // unbind VBO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
   /* Setup Keyboard Controls */
@@ -334,6 +338,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   glEnable(GL_DEPTH_TEST);
   // discards triangles facing away from camera
   glEnable(GL_CULL_FACE);
+  // Enable Wireframe mode for both front and back faces
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 
   return SDL_APP_CONTINUE;
@@ -373,21 +379,59 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   float deltaTime = (float)(currentTime - lastTime) / SDL_MS_PER_SECOND;
   lastTime = currentTime;
 
-  /* Keyboard Controls */
-  // if (keyStates[SDL_SCANCODE_A]) {
-  //   dirInputs.x = 1.0f;
-  // } else if (keyStates[SDL_SCANCODE_D]) {
-  //   dirInputs.x = -1.0f;
+  /* Walking Around Camera */
+  // Camera View Around based on pitch and yaw degree values
+  // SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mX, &mY);
+  // bool isLeftMouseClicked = mouseFlags & SDL_BUTTON_LMASK;
+  // if (isLeftMouseClicked) {
+
+  //   if (isFirstMouse) {
+  //     lastMX = mX;
+  //     lastMY = mY;
+  //     isFirstMouse = false;
+  //   }
+
+  //   float xOffset = mX - lastMX;
+  //   float yOffset = mY - lastMY;
+  //   lastMX = mX;
+  //   lastMY = mY;
+
+  //   yaw += xOffset * mouseSensitivity;
+  //   pitch += yOffset * mouseSensitivity;
+
+  //   // make sure when pitch is out of bounds, screen doesn't flip
+  //   if (pitch > 89.0f) {
+  //     pitch = 89.0f;
+  //   }
+  //   if (pitch < -89.0f) {
+  //     pitch = -89.0f;
+  //   }
+    
+  //   // reorient which way camera front is facing based on pitch and yaw
+  //   float deg2Rad = (MathUtils::PI / 180.0f);
+  //   MathUtils::Vector3 front(
+  //     std::cos(deg2Rad * yaw) * std::cos(deg2Rad * pitch),
+  //     std::sin(deg2Rad * pitch),
+  //     std::sin(deg2Rad * yaw) * std::cos(deg2Rad * pitch)
+  //   );
+  //   front.normalize();
+  //   camFront = front;
   // } else {
-  //   dirInputs.x = 0.0f;
+  //   isFirstMouse = true;
+  // }
+
+  // // cross product is used here to ensure when the camera's orientation changes moving laterally remains consistent
+  // dirInputs = MathUtils::Vector3(0.0f, 0.0f, 0.0f);
+  // if (keyStates[SDL_SCANCODE_A]) {
+  //   dirInputs -= camFront.cross(camUp);
+  // } else if (keyStates[SDL_SCANCODE_D]) {
+  //   dirInputs += camFront.cross(camUp);
   // }
 
   // if (keyStates[SDL_SCANCODE_W]) {
-  //   dirInputs.z = 1.0f;
+  //   dirInputs += camFront;
   // } else if (keyStates[SDL_SCANCODE_S]) {
-  //   dirInputs.z = -1.0f;
-  // } else {
-  //   dirInputs.z = 0.0f;
+  //   dirInputs -= camFront;
   // }
 
   // if (dirInputs.sqrMagnitude() != 0.0f) {
@@ -397,99 +441,21 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   // MathUtils::Vector3 velocity(dirInputs * speed * deltaTime);
   // mainCamPosition += velocity;
 
-  /* Mouse Controls */
-  // float mouseX, mouseY;
-  // SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mouseX, &mouseY);
-  // bool isLeftMouseClick = mouseFlags & SDL_BUTTON_LMASK;
-  // MathUtils::Matrix4 newLookAtMatrix(mainCamera.getViewMatrix());
-  // if (isLeftMouseClick) {
-  //   MathUtils::Vector3 viewCoords = MathUtils::screenSpaceToViewSpace(mouseX, mouseY, (float)WIDTH, (float)HEIGHT, mainCamera.getProjectionMatrix());
-  //   MathUtils::Vector3 worldCoords = MathUtils::screenSpaceToWorldSpace(mouseX, mouseY, 0.1f, (float)WIDTH, (float)HEIGHT, NEAR, FAR, mainCamera.getProjectionMatrix(), mainCamera.getViewMatrix(), true);
+  // MathUtils::Matrix4 newViewMat(MathUtils::lookAt(mainCamPosition, mainCamPosition + camFront, camUp));
 
-
-  //   MathUtils::Vector3 up(0.0f, 1.0f, 0.0f);
-  //   newLookAtMatrix = MathUtils::lookAt(mainCamPosition, mainCamPosition + viewCoords, up);
-  // }
-
-  // MathUtils::Matrix4 translationMat(MathUtils::makeTranslationMatrix(velocity));
-  // newLookAtMatrix = newLookAtMatrix * translationMat;
-  // mainCamera.setViewMatrix(newLookAtMatrix);
-
-  /* Walking Around Camera */
-  // Camera View Around based on pitch and yaw degree values
-  SDL_MouseButtonFlags mouseFlags = SDL_GetMouseState(&mX, &mY);
-  bool isLeftMouseClicked = mouseFlags & SDL_BUTTON_LMASK;
-  if (isLeftMouseClicked) {
-
-    if (isFirstMouse) {
-      lastMX = mX;
-      lastMY = mY;
-      isFirstMouse = false;
-    }
-
-    float xOffset = mX - lastMX;
-    float yOffset = mY - lastMY;
-    lastMX = mX;
-    lastMY = mY;
-
-    yaw += xOffset * mouseSensitivity;
-    pitch += yOffset * mouseSensitivity;
-
-    // make sure when pitch is out of bounds, screen doesn't flip
-    if (pitch > 89.0f) {
-      pitch = 89.0f;
-    }
-    if (pitch < -89.0f) {
-      pitch = -89.0f;
-    }
-    
-    // reorient which way camera front is facing based on pitch and yaw
-    float deg2Rad = (MathUtils::PI / 180.0f);
-    MathUtils::Vector3 front(
-      std::cos(deg2Rad * yaw) * std::cos(deg2Rad * pitch),
-      std::sin(deg2Rad * pitch),
-      std::sin(deg2Rad * yaw) * std::cos(deg2Rad * pitch)
-    );
-    front.normalize();
-    camFront = front;
-  }
-
-  // cross product is used here to ensure when the camera's orientation changes moving laterally remains consistent
-  dirInputs = MathUtils::Vector3(0.0f, 0.0f, 0.0f);
-  if (keyStates[SDL_SCANCODE_A]) {
-    dirInputs -= camFront.cross(camUp);
-  } else if (keyStates[SDL_SCANCODE_D]) {
-    dirInputs += camFront.cross(camUp);
-  }
-
-  if (keyStates[SDL_SCANCODE_W]) {
-    dirInputs += camFront;
-  } else if (keyStates[SDL_SCANCODE_S]) {
-    dirInputs -= camFront;
-  }
-
-  if (dirInputs.sqrMagnitude() != 0.0f) {
-    dirInputs.normalize();
-  }
-
-  MathUtils::Vector3 velocity(dirInputs * speed * deltaTime);
-  mainCamPosition += velocity;
-
-  MathUtils::Matrix4 newViewMat(MathUtils::lookAt(mainCamPosition, mainCamPosition + camFront, camUp));
-
-  newViewMat = newViewMat * MathUtils::makeTranslationMatrix(velocity);
-  mainCamera.setViewMatrix(newViewMat);
+  // newViewMat = newViewMat * MathUtils::makeTranslationMatrix(velocity);
+  // mainCamera.setViewMatrix(newViewMat);
 
   /* Rotate Around the cube in world space */
-  // MathUtils::Vector3 targetPosition(0.0f, 0.0f, -2.0f);
-  // float radius = 4.0f;
-  // float angle = std::fmod(static_cast<float>(currentTime) / SDL_MS_PER_SECOND, 6.28318530718f);
-  // float camX = static_cast<float>(std::sin(angle) * radius) + targetPosition.x;
-  // float camZ = static_cast<float>(std::cos(angle) * radius) + targetPosition.z;
-  // MathUtils::Vector3 srcPosition(camX, camX, camZ);
-  // MathUtils::Vector3 worldUp(0.0f, 1.0f, 0.0f);
-  // MathUtils::Matrix4 newViewMat = MathUtils::lookAt(srcPosition, targetPosition, worldUp);
-  // mainCamera.setViewMatrix(newViewMat);
+  MathUtils::Vector3 targetPosition(0.0f, 0.0f, -4.0f);
+  float radius = 4.0f;
+  float angle = std::fmod(static_cast<float>(currentTime) / SDL_MS_PER_SECOND, 6.28318530718f);
+  float camX = static_cast<float>(std::sin(angle) * radius) + targetPosition.x;
+  float camZ = static_cast<float>(std::cos(angle) * radius) + targetPosition.z;
+  MathUtils::Vector3 srcPosition(camX, camX, camZ);
+  MathUtils::Vector3 worldUp(0.0f, 1.0f, 0.0f);
+  MathUtils::Matrix4 newViewMat = MathUtils::lookAt(srcPosition, targetPosition, worldUp);
+  mainCamera.setViewMatrix(newViewMat);
 
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -510,10 +476,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
 
   glBindVertexArray(VAO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glDrawElements(GL_TRIANGLES, sizeof(cube24Indices), GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, cylinderIndices.size(), GL_UNSIGNED_INT, 0);
+  //glDrawElements(GL_TRIANGLES, sizeof(cube24Indices), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   SDL_GL_SwapWindow(win);
   return SDL_APP_CONTINUE;
@@ -530,4 +495,181 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 
   SDL_Quit();
   std::cout << "shutting down SDL3 game app" << std::endl;
+}
+
+std::vector<float> generateUnitCircleCoordinates(int sectorCount) {
+  assert(sectorCount > 0);
+
+  std::vector<float> vertices;
+
+  float sectorStep = (2.0f * MathUtils::PI) / sectorCount;
+  for (int i = 0;i < sectorCount; ++i) {
+    float sectorAngle = i * sectorStep;
+    float x = (float)std::cos(sectorAngle);
+    float y = 0.0f;
+    float z = (float)std::sin(sectorAngle);
+
+    vertices.push_back(x);
+    vertices.push_back(y);
+    vertices.push_back(z);
+
+  }
+
+  return vertices;
+}
+
+std::vector<float> createCylinderVertices(int sectorCount, float topRadius, float bottomRadius, float height) {
+  std::vector<float> vertices;
+  std::vector<float> unitVertices = generateUnitCircleCoordinates(sectorCount);
+
+  // bottom center base coordinates
+  float botX = 0.0f, botY = -height / 2.0f, botZ = 0.0f;
+  // top center base coordinates
+  float topX = 0.0f, topY = height / 2.0f, topZ = 0.0f;
+
+  vertices.push_back(botX);
+  vertices.push_back(botY);
+  vertices.push_back(botZ);
+  vertices.push_back(topX);
+  vertices.push_back(topY);
+  vertices.push_back(topZ);
+
+  // bottom cap
+  for (int i = 0;i < unitVertices.size(); i += 3) {
+    float ux = unitVertices[i];
+    float uy = -height / 2.0f;
+    float uz = unitVertices[i+2];
+
+    vertices.push_back(bottomRadius * ux);
+    vertices.push_back(uy);
+    vertices.push_back(bottomRadius * uz);
+  }
+
+  // top cap
+  for (int i = 0;i < unitVertices.size(); i += 3) {
+    float ux = unitVertices[i];
+    float uy = height / 2.0f;
+    float uz = unitVertices[i+2];
+
+    vertices.push_back(topRadius * ux);
+    vertices.push_back(uy);
+    vertices.push_back(topRadius * uz);
+  }
+
+  // side vertices
+  for (int i = 0;i < unitVertices.size(); i += 3) {
+    vertices.push_back(bottomRadius * unitVertices[i]);
+    vertices.push_back(-height / 2.0f);
+    vertices.push_back(bottomRadius * unitVertices[i+2]);
+  }
+
+  for (int i = 0;i < unitVertices.size(); i += 3) {
+    vertices.push_back(topRadius * unitVertices[i]);
+    vertices.push_back(height / 2.0f);
+    vertices.push_back(topRadius * unitVertices[i+2]);
+  }
+
+  return vertices;
+}
+
+std::vector<unsigned int> createCylinderIndices(int sectorCount) {
+  std::vector<unsigned int> indices;
+
+  int baseCenterIndex = 0;
+  int topCenterIndex = 1;
+  int i = topCenterIndex + 1;
+
+  // bottom base
+  for(int j = 0;j < sectorCount; ++j, ++i) {
+    if (j < sectorCount - 1) {
+      indices.push_back(baseCenterIndex);
+      indices.push_back(i);
+      indices.push_back(i + 1);
+    } else {
+      // last triangle
+      indices.push_back(i);
+      indices.push_back(baseCenterIndex + 2);
+      indices.push_back(baseCenterIndex);
+    }
+  }
+
+  // top base
+  int firstIndexTop = i;
+  for (int j = 0;j < sectorCount; ++j, ++i) {
+    if (j < sectorCount - 1) {
+      indices.push_back(i+1);
+      indices.push_back(i);
+      indices.push_back(topCenterIndex);
+    } else {
+      // last triangle
+      indices.push_back(firstIndexTop);
+      indices.push_back(i);
+      indices.push_back(topCenterIndex);
+    }
+  }
+
+  // side indices
+  int sideBotStart = i;
+  int sideTopStart = sideBotStart + sectorCount;
+  for (int k = 0;k < sectorCount; ++k) {
+    int b1 = sideBotStart + k;
+    int b2 = sideBotStart + ((k+1) % sectorCount);
+    int t1 = sideTopStart + k;
+    int t2 = sideTopStart + ((k+1) % sectorCount);
+
+    indices.push_back(t1);
+    indices.push_back(b2);
+    indices.push_back(b1);
+
+    indices.push_back(t1);
+    indices.push_back(t2);
+    indices.push_back(b2);
+  }
+
+  return indices;
+}
+
+
+std::vector<float> createCircleVertices(int sectorCount, float radius, float zDepth) {
+    std::vector<float> vertices;
+    std::vector<float> unitVertices = generateUnitCircleCoordinates(sectorCount);
+
+    vertices.push_back(0.0f);   // X
+    vertices.push_back(zDepth);   // Y
+    vertices.push_back(0.0f); // Z
+
+    // 2. Perimeter vertices (remap unit X, Z -> mesh X, Y)
+    for (size_t i = 0; i < unitVertices.size(); i += 3) {
+        float unitX = unitVertices[i];     // X coordinate
+        float unitZ = unitVertices[i + 2]; // Z coordinate from unit generator
+
+        vertices.push_back(radius * unitX);
+        vertices.push_back(zDepth); 
+        vertices.push_back(radius * unitZ);         
+    }
+
+    return vertices;
+}
+
+std::vector<unsigned int> createCircleIndices(int sectorCount) {
+  std::vector<unsigned int> indices;
+
+  int baseCenterIndex = 0;
+  int i = 1;
+
+  for(int j = 0;j < sectorCount; ++j, ++i) {
+    if (j < sectorCount - 1) {
+      indices.push_back(baseCenterIndex);
+      indices.push_back(i);
+      indices.push_back(i + 1);
+    } else {
+      // last triangle
+      indices.push_back(i);
+      indices.push_back(baseCenterIndex + 1);
+      indices.push_back(baseCenterIndex);
+    }
+  }
+
+  
+  return indices;
 }
