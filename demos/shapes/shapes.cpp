@@ -181,8 +181,12 @@ unsigned int cube24Indices[] = {
 std::vector<float> generateUnitCircleCoordinates(int sectorCount);
 std::vector<float> createCylinderVertices(int sectorCount, float topRadius, float bottomRadius, float height);
 std::vector<unsigned int> createCylinderIndices(int sectorCount);
+std::vector<float> createConeVertices(int sectorCount, int stackCount, float baseRadius, float height);
+std::vector<unsigned int> createConeIndices(int sectorCount, int stackCount);
+
 std::vector<float> createCircleVertices(int sectorCount, float radius, float zDepth);
 std::vector<unsigned int> createCircleIndices(int sectorCount);
+
 
 /* ----------------- End Shapes ----------------- */
 
@@ -200,6 +204,8 @@ float radius = 1.0f;
 float height = 4.0f;
 std::vector<float> cylinderVertices;
 std::vector<unsigned int> cylinderIndices;
+std::vector<float> coneVertices;
+std::vector<unsigned int> coneIndices;
 
 GLuint shaderProgramId;
 
@@ -270,6 +276,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     cylinderIndices = createCylinderIndices(sectorCount);
   }
 
+  /* Generate Cone Vertices and Indices */
+  {
+    coneVertices = createConeVertices(sectorCount, 4, radius, height);
+    coneIndices = createConeIndices(sectorCount, 4);
+  }
+
   /* Shader Initialization */
   {
     std::string vertShaderSrc("shaders/cylinder.vert");
@@ -296,16 +308,26 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    
     /* Cylinder Buffer Data Initialization */
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * cylinderVertices.size(), cylinderVertices.data(), GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(float) * cylinderVertices.size(), cylinderVertices.data(), GL_STATIC_DRAW);
 
+    // GLsizei vertexPositionStride = 3 * sizeof(float);
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
+
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * cylinderIndices.size(), cylinderIndices.data(), GL_STATIC_DRAW);
+
+    /* Cone Buffer Data Initialization */
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * coneVertices.size(), coneVertices.data(), GL_STATIC_DRAW);
+    
     GLsizei vertexPositionStride = 3 * sizeof(float);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * cylinderIndices.size(), cylinderIndices.data(), GL_STATIC_DRAW);
-
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * coneIndices.size(), coneIndices.data(), GL_STATIC_DRAW);
     
     /* Cube Buffer Data Initialization */
     // glBufferData(GL_ARRAY_BUFFER, sizeof(cube24Vertices), cube24Vertices, GL_STATIC_DRAW);
@@ -476,7 +498,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
 
   glBindVertexArray(VAO);
-  glDrawElements(GL_TRIANGLES, cylinderIndices.size(), GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, coneIndices.size(), GL_UNSIGNED_INT, 0);
+  // glDrawElements(GL_TRIANGLES, cylinderIndices.size(), GL_UNSIGNED_INT, 0);
   //glDrawElements(GL_TRIANGLES, sizeof(cube24Indices), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
 
@@ -575,9 +598,9 @@ std::vector<float> createCylinderVertices(int sectorCount, float topRadius, floa
 std::vector<unsigned int> createCylinderIndices(int sectorCount) {
   std::vector<unsigned int> indices;
 
-  int baseCenterIndex = 0;
-  int topCenterIndex = 1;
-  int i = topCenterIndex + 1;
+  unsigned int baseCenterIndex = 0;
+  unsigned int topCenterIndex = 1;
+  unsigned int i = topCenterIndex + 1;
 
   // bottom base
   for(int j = 0;j < sectorCount; ++j, ++i) {
@@ -594,7 +617,7 @@ std::vector<unsigned int> createCylinderIndices(int sectorCount) {
   }
 
   // top base
-  int firstIndexTop = i;
+  unsigned int firstIndexTop = i;
   for (int j = 0;j < sectorCount; ++j, ++i) {
     if (j < sectorCount - 1) {
       indices.push_back(i+1);
@@ -609,13 +632,13 @@ std::vector<unsigned int> createCylinderIndices(int sectorCount) {
   }
 
   // side indices
-  int sideBotStart = i;
-  int sideTopStart = sideBotStart + sectorCount;
+  unsigned int sideBotStart = i;
+  unsigned int sideTopStart = sideBotStart + sectorCount;
   for (int k = 0;k < sectorCount; ++k) {
-    int b1 = sideBotStart + k;
-    int b2 = sideBotStart + ((k+1) % sectorCount);
-    int t1 = sideTopStart + k;
-    int t2 = sideTopStart + ((k+1) % sectorCount);
+    unsigned int b1 = sideBotStart + k;
+    unsigned int b2 = sideBotStart + ((k+1) % sectorCount);
+    unsigned int t1 = sideTopStart + k;
+    unsigned int t2 = sideTopStart + ((k+1) % sectorCount);
 
     indices.push_back(t1);
     indices.push_back(b2);
@@ -629,6 +652,93 @@ std::vector<unsigned int> createCylinderIndices(int sectorCount) {
   return indices;
 }
 
+
+std::vector<float> createConeVertices(int sectorCount, int stackCount, float baseRadius, float height) {
+  std::vector<float> vertices;
+  std::vector<float> unitVertices = generateUnitCircleCoordinates(sectorCount);
+
+  float baseX = 0.0f, baseY = -height / 2.0f, baseZ = 0.0f;
+  vertices.push_back(baseX);
+  vertices.push_back(baseY);
+  vertices.push_back(baseZ);
+
+  // rings of the cone -- base and sides where base is the 0th ring and the sides are 1st rings to (stackCount - 1)th ring
+  for (int i = 0;i < stackCount; ++i) {
+    float y = (-height / 2.0f) + ((float)i / stackCount) * height;
+    // as height increases, radius decreases to form the cone shape
+    float radius = baseRadius * (1.0f - ((float)i / stackCount)); 
+
+    for (int j = 0, k = 0; j < sectorCount; ++j, k += 3) {
+      float x = unitVertices[k] * radius;
+      float z = unitVertices[k+2] * radius;
+      vertices.push_back(x);
+      vertices.push_back(y);
+      vertices.push_back(z);
+    }
+  }
+
+  // tip
+  float tipX = 0.0f, tipY = height / 2.0f, tipZ = 0.0f;
+  vertices.push_back(tipX);
+  vertices.push_back(tipY);
+  vertices.push_back(tipZ);
+
+  return vertices;
+}
+
+std::vector<unsigned int> createConeIndices(int sectorCount, int stackCount) {
+  std::vector<unsigned int> indices;
+  
+  unsigned int baseCenterIndex = 0;
+  // stackCount * sectorCount is the total number of vertices that form all rings around
+  // + 1 is the last vertex representing the cone's tip vertex position
+  unsigned int tipCenterIndex = (stackCount * sectorCount) + 1;
+
+  // base
+  for(int i = 0; i < sectorCount; ++i) {
+    unsigned int v1 = i + 1;
+    unsigned int v2 = ((i+1) % sectorCount) + 1;
+
+    indices.push_back(baseCenterIndex);
+    indices.push_back(v1);
+    indices.push_back(v2);
+  }
+
+  // sides
+  for (int i = 0; i < stackCount - 1; ++i) {
+    unsigned int beginStackIndex = (i * sectorCount) + 1;
+    unsigned int nextStackIndex = ((i+1) * sectorCount) + 1;
+    
+    for (int j = 0; j < sectorCount; ++j) {
+      unsigned int nextOffset = (j + 1) % sectorCount;
+
+      unsigned int k1 = beginStackIndex + j;
+      unsigned int k1Next = beginStackIndex + nextOffset;
+      unsigned int k2 = nextStackIndex + j;
+      unsigned int k2Next = nextStackIndex + nextOffset;
+
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1Next);
+
+      indices.push_back(k2);
+      indices.push_back(k2Next);
+      indices.push_back(k1Next);
+    }
+  }
+
+  // last stack to tip
+  unsigned int lastStackIndex = ((stackCount - 1) * sectorCount) + 1;
+  for (int i = 0;i < sectorCount; ++i) {
+    unsigned int l1 = lastStackIndex + i;
+    unsigned int l2 = lastStackIndex + ((i+1) % sectorCount);
+    indices.push_back(tipCenterIndex);
+    indices.push_back(l2);
+    indices.push_back(l1);
+  }
+
+  return indices;
+}
 
 std::vector<float> createCircleVertices(int sectorCount, float radius, float zDepth) {
     std::vector<float> vertices;
@@ -654,10 +764,10 @@ std::vector<float> createCircleVertices(int sectorCount, float radius, float zDe
 std::vector<unsigned int> createCircleIndices(int sectorCount) {
   std::vector<unsigned int> indices;
 
-  int baseCenterIndex = 0;
-  int i = 1;
+  unsigned int baseCenterIndex = 0;
+  unsigned int i = 1;
 
-  for(int j = 0;j < sectorCount; ++j, ++i) {
+  for(unsigned int j = 0;j < sectorCount; ++j, ++i) {
     if (j < sectorCount - 1) {
       indices.push_back(baseCenterIndex);
       indices.push_back(i);
