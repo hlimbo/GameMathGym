@@ -179,10 +179,15 @@ unsigned int cube24Indices[] = {
 };
 
 std::vector<float> generateUnitCircleCoordinates(int sectorCount);
+
 std::vector<float> createCylinderVertices(int sectorCount, float topRadius, float bottomRadius, float height);
 std::vector<unsigned int> createCylinderIndices(int sectorCount);
+
 std::vector<float> createConeVertices(int sectorCount, int stackCount, float baseRadius, float height);
 std::vector<unsigned int> createConeIndices(int sectorCount, int stackCount);
+
+std::vector<float> createSphereVertices(int sectorCount, int stackCount, float radius);
+std::vector<unsigned int> createSphereIndices(int sectorCount, int stackCount);
 
 std::vector<float> createCircleVertices(int sectorCount, float radius, float zDepth);
 std::vector<unsigned int> createCircleIndices(int sectorCount);
@@ -206,6 +211,8 @@ std::vector<float> cylinderVertices;
 std::vector<unsigned int> cylinderIndices;
 std::vector<float> coneVertices;
 std::vector<unsigned int> coneIndices;
+std::vector<float> sphereVertices;
+std::vector<unsigned int> sphereIndices;
 
 GLuint shaderProgramId;
 
@@ -282,6 +289,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     coneIndices = createConeIndices(sectorCount, 4);
   }
 
+  /* Generate Sphere Vertices and Indices */
+  {
+    sphereVertices = createSphereVertices(16, 16, 1.0f);
+    sphereIndices = createSphereIndices(16, 16);
+  }
+
   /* Shader Initialization */
   {
     std::string vertShaderSrc("shaders/cylinder.vert");
@@ -320,14 +333,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * cylinderIndices.size(), cylinderIndices.data(), GL_STATIC_DRAW);
 
     /* Cone Buffer Data Initialization */
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * coneVertices.size(), coneVertices.data(), GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(float) * coneVertices.size(), coneVertices.data(), GL_STATIC_DRAW);
     
+    // GLsizei vertexPositionStride = 3 * sizeof(float);
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
+
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * coneIndices.size(), coneIndices.data(), GL_STATIC_DRAW);
+
+    /* Sphere Buffer Data Initialization */
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * sphereVertices.size(), sphereVertices.data(), GL_STATIC_DRAW);
+
     GLsizei vertexPositionStride = 3 * sizeof(float);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * coneIndices.size(), coneIndices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * sphereIndices.size(), sphereIndices.data(), GL_STATIC_DRAW);
     
     /* Cube Buffer Data Initialization */
     // glBufferData(GL_ARRAY_BUFFER, sizeof(cube24Vertices), cube24Vertices, GL_STATIC_DRAW);
@@ -498,7 +521,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
 
   glBindVertexArray(VAO);
-  glDrawElements(GL_TRIANGLES, coneIndices.size(), GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
+  //glDrawElements(GL_TRIANGLES, coneIndices.size(), GL_UNSIGNED_INT, 0);
   // glDrawElements(GL_TRIANGLES, cylinderIndices.size(), GL_UNSIGNED_INT, 0);
   //glDrawElements(GL_TRIANGLES, sizeof(cube24Indices), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
@@ -735,6 +759,63 @@ std::vector<unsigned int> createConeIndices(int sectorCount, int stackCount) {
     indices.push_back(tipCenterIndex);
     indices.push_back(l2);
     indices.push_back(l1);
+  }
+
+  return indices;
+}
+
+std::vector<float> createSphereVertices(int sectorCount, int stackCount, float radius) {
+  std::vector<float> vertices;
+
+  // stackStep <= stackCount accounts for top pole
+  for (int stackStep = 0; stackStep <= stackCount; ++stackStep) {
+    // phi range is from -PI / 2 to PI / 2
+    float phi = MathUtils::PI * ((float)stackStep / stackCount) - (MathUtils::PI / 2.0f);
+    float sinPhi = (float)std::sin(phi);
+    float cosPhi = (float)std::cos(phi);
+
+    for (int sectorStep = 0; sectorStep < sectorCount; ++sectorStep) {
+      // theta range is from 0 to 2 * PI
+      float theta = 2.0f * MathUtils::PI * ((float)sectorStep / sectorCount);
+      float sinTheta = (float)std::sin(theta);
+      float cosTheta = (float)std::cos(theta);
+
+      float x = radius * cosPhi * cosTheta;
+      float y = radius * sinPhi;
+      float z = radius * cosPhi * sinTheta;
+
+      vertices.push_back(x);
+      vertices.push_back(y);
+      vertices.push_back(z);
+    } 
+  }
+
+  return vertices;
+}
+
+std::vector<unsigned int> createSphereIndices(int sectorCount, int stackCount) {
+  std::vector<unsigned int> indices;
+
+  for (unsigned int stackStep = 1; stackStep <= stackCount; ++stackStep) {
+    for (unsigned int sectorStep = 0; sectorStep < sectorCount; ++sectorStep) {
+      unsigned int nextSector = (sectorStep + 1) % sectorCount;
+
+      // bottom
+      unsigned int v1 = ((stackStep-1) * sectorCount) + sectorStep;
+      unsigned int v1Next = ((stackStep-1) * sectorCount) + nextSector;
+
+      // top
+      unsigned int v2 = (stackStep * sectorCount) + sectorStep;
+      unsigned int v2Next = (stackStep * sectorCount) + nextSector;
+
+      indices.push_back(v1);
+      indices.push_back(v2);
+      indices.push_back(v2Next);
+
+      indices.push_back(v1Next);
+      indices.push_back(v1);
+      indices.push_back(v2Next);
+    }
   }
 
   return indices;
