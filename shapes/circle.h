@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <vector>
 
+#include "debug_vertex.h"
+
 namespace Shapes {
   class Circle {
     private:
-      std::vector<float> circleVertices;
+      std::vector<Shapes::DebugVertex> circleVertices;
       std::vector<uint32_t> circleIndices;
       uint32_t VAO;
       uint32_t VBO;
@@ -20,7 +22,7 @@ namespace Shapes {
       ~Circle();
       void Draw();
     private:
-      std::vector<float> createCircleVertices();
+      std::vector<Shapes::DebugVertex> createCircleVertices();
       std::vector<uint32_t> createCircleIndices();
   };
 }

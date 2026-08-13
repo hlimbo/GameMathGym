@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <vector>
 
+#include "debug_vertex.h"
+
 namespace Shapes {
   class Cone {
     private:
-      std::vector<float> coneVertices;
+      std::vector<Shapes::DebugVertex> coneVertices;
       std::vector<uint32_t> coneIndices;
       uint32_t VAO;
       uint32_t VBO;
@@ -22,7 +24,7 @@ namespace Shapes {
       ~Cone();
       void Draw();
     private:
-      std::vector<float> createConeVertices();
+      std::vector<Shapes::DebugVertex> createConeVertices();
       std::vector<uint32_t> createConeIndices();
   };
 }

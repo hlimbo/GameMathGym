@@ -4,6 +4,8 @@
   #include <glad/glad.h> // desktop builds
 #endif
 
+#include <stddef.h>
+
 #include "shape_utils.h"
 #include "circle.h"
 
@@ -21,11 +23,17 @@ Shapes::Circle::Circle(uint32_t sectorCount, float radius) :
   glGenBuffers(1, &EBO);
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * circleVertices.size(), circleVertices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Shapes::DebugVertex) * circleVertices.size(), circleVertices.data(), GL_STATIC_DRAW);
 
-  GLsizei vertexStride = 3 * sizeof(float);
+  GLsizei vertexStride = sizeof(Shapes::DebugVertex);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, position));
+
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, color));
+
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, normal));
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * circleIndices.size(), circleIndices.data(), GL_STATIC_DRAW);
@@ -49,24 +57,30 @@ void Shapes::Circle::Draw()
   glBindVertexArray(0);
 }
 
-std::vector<float> Shapes::Circle::createCircleVertices()
+std::vector<Shapes::DebugVertex> Shapes::Circle::createCircleVertices()
 {
-  std::vector<float> vertices;
+  std::vector<Shapes::DebugVertex> vertices;
   std::vector<float> unitVertices = ShapeUtils::generateUnitCircleCoordinates(sectorCount);
 
-  // Center
-  vertices.push_back(0.0f);
-  vertices.push_back(0.0f);
-  vertices.push_back(0.0f); 
+  Shapes::DebugVertex center {
+    Shapes::DebugColor(0.0f, 1.0f, 0.0f, 1.0f),
+    MathUtils::Vector3(0.0f, 0.0f, 0.0f),
+    MathUtils::Vector3(0.0f, -1.0f, 0.0f)
+  };
+  vertices.push_back(center);
 
-  // 2. Perimeter vertices
+  // Perimeter vertices
   for (size_t i = 0; i < unitVertices.size(); i += 3) {
       float unitX = unitVertices[i];     // X coordinate
       float unitZ = unitVertices[i + 2]; // Z coordinate from unit generator
 
-      vertices.push_back(radius * unitX);
-      vertices.push_back(0.0f); 
-      vertices.push_back(radius * unitZ);         
+      Shapes::DebugVertex vertex {
+        Shapes::DebugColor(0.0f, 1.0f, 0.0f, 1.0f),
+        MathUtils::Vector3(radius * unitX, 0.0f, radius * unitZ),
+        MathUtils::Vector3(0.0f, -1.0f, 0.0f),
+      };
+
+      vertices.push_back(vertex);  
   }
 
   return vertices;

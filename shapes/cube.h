@@ -3,10 +3,12 @@
 
 #include <cstdint>
 
+#include "debug_vertex.h"
+
 namespace Shapes {
   class Cube {
     private:
-      float cubeVertices[168];
+      Shapes::DebugVertex cubeVertices[56];
       uint32_t cubeIndices[36];
       uint32_t VAO;
       uint32_t VBO;

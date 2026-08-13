@@ -4,70 +4,144 @@
   #include <glad/glad.h> // desktop builds
 #endif
 
+#include <stddef.h>
+
 #include "cube.h"
 
 // 24 vertices cube to support lighting and to support adding different colors on each side of the cube
 Shapes::Cube::Cube() :
   cubeVertices {
     // front face
-    -0.5f, 0.5f, 0.5f,
-    1.0f, 0.0f, 0.0f, 1.0f, // red
-    0.5f, 0.5f, 0.5f,
-    1.0f, 0.0f, 0.0f, 1.0f, // red
-    -0.5f, -0.5f, 0.5f,
-    1.0f, 0.0f, 0.0f, 1.0f, // red
-    0.5f, -0.5f, 0.5f,
-    1.0f, 0.0f, 0.0f, 1.0f, //red
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 1.0f }, // red
+      MathUtils::Vector3 { -0.5f, 0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, 1.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 1.0f }, // red
+      MathUtils::Vector3 { 0.5f, 0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, 1.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 1.0f }, // red
+      MathUtils::Vector3 { -0.5f, -0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, 1.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 1.0f }, //red
+      MathUtils::Vector3 { 0.5f, -0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, 1.0f }
+    },
 
     // back face
-    -0.5f, 0.5f, -0.5f,
-    0.0f, 1.0f, 0.0f, 1.0f, // green
-    0.5f, 0.5f, -0.5f,
-    0.0f, 1.0f, 0.0f, 1.0f, // green
-    -0.5f, -0.5f, -0.5f,
-    0.0f, 1.0f, 0.0f, 1.0f, // green
-    0.5f, -0.5f, -0.5f,
-    0.0f, 1.0f, 0.0f, 1.0f, // green
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 1.0f, 0.0f, 1.0f }, // green
+      MathUtils::Vector3 { -0.5f, 0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, -1.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 1.0f, 0.0f, 1.0f }, // green
+      MathUtils::Vector3 { 0.5f, 0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, -1.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 1.0f, 0.0f, 1.0f }, // green
+      MathUtils::Vector3 { -0.5f, -0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, -1.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 1.0f, 0.0f, 1.0f }, // green
+      MathUtils::Vector3 { 0.5f, -0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, 0.0f, -1.0f }
+    },
 
     //left face
-    -0.5f, 0.5f, 0.5f,
-    0.0f, 0.0f, 1.0f, 1.0f, // blue
-    -0.5f, 0.5f, -0.5f,
-    0.0f, 0.0f, 1.0f, 1.0f, // blue
-    -0.5f, -0.5f, 0.5f,
-    0.0f, 0.0f, 1.0f, 1.0f, // blue
-    -0.5f, -0.5f, -0.5f,
-    0.0f, 0.0f, 1.0f, 1.0f, // blue
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 0.0f, 1.0f, 1.0f }, // blue
+      MathUtils::Vector3 { -0.5f, 0.5f, 0.5f },
+      MathUtils::Vector3 { -1.0f, 0.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 0.0f, 1.0f, 1.0f }, // blue
+      MathUtils::Vector3 { -0.5f, 0.5f, -0.5f },
+      MathUtils::Vector3 { -1.0f, 0.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 0.0f, 1.0f, 1.0f }, // blue
+      MathUtils::Vector3 { -0.5f, -0.5f, 0.5f },
+      MathUtils::Vector3 { -1.0f, 0.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.0f, 0.0f, 1.0f, 1.0f }, // blue
+      MathUtils::Vector3 { -0.5f, -0.5f, -0.5f },
+      MathUtils::Vector3 { -1.0f, 0.0f, 0.0f }
+    },
 
     // right face
-    0.5f, 0.5f, 0.5f,
-    1.0f, 0.0f, 1.0f, 1.0f, // purple
-    0.5f, 0.5f, -0.5f,
-    1.0f, 0.0f, 1.0f, 1.0f, // purple
-    0.5f, -0.5f, 0.5f,
-    1.0f, 0.0f, 1.0f, 1.0f, // purple
-    0.5f, -0.5f, -0.5f,
-    1.0f, 0.0f, 1.0f, 1.0f, // purple
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 1.0f, 1.0f }, // purple
+      MathUtils::Vector3 { 0.5f, 0.5f, 0.5f },
+      MathUtils::Vector3 { 1.0f, 0.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 1.0f, 1.0f }, // purple
+      MathUtils::Vector3 { 0.5f, 0.5f, -0.5f },
+      MathUtils::Vector3 { 1.0f, 0.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 1.0f, 1.0f }, // purple
+      MathUtils::Vector3 { 0.5f, -0.5f, 0.5f },
+      MathUtils::Vector3 { 1.0f, 0.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 0.0f, 1.0f, 1.0f }, // purple
+      MathUtils::Vector3 { 0.5f, -0.5f, -0.5f },
+      MathUtils::Vector3 { 1.0f, 0.0f, 0.0f }
+    },
 
     // top face
-    -0.5f, 0.5f, 0.5f,
-    1.0f, 1.0f, 0.0f, 1.0f, // yellow
-    0.5f, 0.5f, 0.5f,
-    1.0f, 1.0f, 0.0f, 1.0f, // yellow
-    -0.5f, 0.5f, -0.5f,
-    1.0f, 1.0f, 0.0f, 1.0f, // yellow
-    0.5f, 0.5f, -0.5f,
-    1.0f, 1.0f, 0.0f, 1.0f, // yellow
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 1.0f, 0.0f, 1.0f }, // yellow
+      MathUtils::Vector3 { -0.5f, 0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, 1.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 1.0f, 0.0f, 1.0f }, // yellow
+      MathUtils::Vector3 { 0.5f, 0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, 1.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 1.0f, 0.0f, 1.0f }, // yellow
+      MathUtils::Vector3 { -0.5f, 0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, 1.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 1.0f, 1.0f, 0.0f, 1.0f }, // yellow
+      MathUtils::Vector3 { 0.5f, 0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, 1.0f, 0.0f }
+    },
 
     // bottom face
-    -0.5f, -0.5f, 0.5f,
-    0.32f, 0.5f, 0.32f, 1.0f, // color
-    0.5f, -0.5f, 0.5f,
-    0.32f, 0.5f, 0.32f, 1.0f, // color
-    -0.5f, -0.5f, -0.5f,
-    0.32f, 0.5f, 0.32f, 1.0f, // color
-    0.5f, -0.5f, -0.5f,
-    0.32f, 0.5f, 0.32f, 1.0f, // color
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.32f, 0.5f, 0.32f, 1.0f }, // color
+      MathUtils::Vector3 { -0.5f, -0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, -1.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.32f, 0.5f, 0.32f, 1.0f }, // color
+      MathUtils::Vector3 { 0.5f, -0.5f, 0.5f },
+      MathUtils::Vector3 { 0.0f, -1.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.32f, 0.5f, 0.32f, 1.0f }, // color
+      MathUtils::Vector3 { -0.5f, -0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, -1.0f, 0.0f }
+    },
+    Shapes::DebugVertex {
+      Shapes::DebugColor { 0.32f, 0.5f, 0.32f, 1.0f }, // color
+      MathUtils::Vector3 { 0.5f, -0.5f, -0.5f },
+      MathUtils::Vector3 { 0.0f, -1.0f, 0.0f }
+    }
   },
   cubeIndices {
     // front face
@@ -104,13 +178,16 @@ Shapes::Cube::Cube() :
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
-  GLsizei vertexStride = 7 * sizeof(float);
+  GLsizei vertexStride = sizeof(Shapes::DebugVertex);
   // sets to location = 0 in the vertex shader for vertex position
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, position));
   // sets to location = 1 in the vertex shader for rgba color
   glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexStride, (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, color));
+  // sets to location = 2 in the vertex shader for normal
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, normal));
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubeIndices), cubeIndices, GL_STATIC_DRAW);

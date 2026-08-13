@@ -3,10 +3,12 @@
 
 #include <cstdint>
 
+#include "debug_vertex.h"
+
 namespace Shapes {
   class Quad {
     private:
-      float quadVertices[12];
+      Shapes::DebugVertex quadVertices[4];
       uint32_t quadIndices[6];
       uint32_t VAO;
       uint32_t VBO;

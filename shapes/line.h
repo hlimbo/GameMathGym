@@ -7,11 +7,12 @@
 // https://en.cppreference.com/cpp/header/cstdint
 // https://wikis.khronos.org/opengl/OpenGL_Type
 #include <cstdint>
+#include "math_utils/vector3.h"
 
 namespace Shapes {
   class Line {
     private:
-      float lineVertices[6];
+      MathUtils::Vector3 lineVertices[2];
       uint32_t lineIndices[2];
       uint32_t VAO;
       uint32_t VBO;

@@ -4,6 +4,8 @@
   #include <glad/glad.h> // desktop builds
 #endif
 
+#include <stddef.h>
+
 #include "shape_utils.h"
 #include "cylinder.h"
 
@@ -23,12 +25,18 @@ Shapes::Cylinder::Cylinder(uint32_t sectorCount, float topRadius, float bottomRa
   glGenBuffers(1, &EBO);
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, cylinderVertices.size() * sizeof(float), cylinderVertices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, cylinderVertices.size() * sizeof(Shapes::DebugVertex), cylinderVertices.data(), GL_STATIC_DRAW);
 
-  GLsizei vertexStride = 3 * sizeof(float);
+  GLsizei vertexStride = sizeof(Shapes::DebugVertex);
   // sets to location = 0 in the vertex shader for vertex position
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, position));
+  // sets to location = 1 in the vertex shader for vertex color
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, color));
+  // sets to location = 2 in the vertex shader for vertex normal
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, normal));
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, cylinderIndices.size() * sizeof(uint32_t), cylinderIndices.data(), GL_STATIC_DRAW);
@@ -52,22 +60,25 @@ void Shapes::Cylinder::Draw()
   glBindVertexArray(0);
 }
 
-std::vector<float> Shapes::Cylinder::createCylinderVertices()
+std::vector<Shapes::DebugVertex> Shapes::Cylinder::createCylinderVertices()
 {
-  std::vector<float> vertices;
+  std::vector<Shapes::DebugVertex> vertices;
   std::vector<float> unitVertices = ShapeUtils::generateUnitCircleCoordinates(sectorCount);
 
-  // bottom center base coordinates
-  float botX = 0.0f, botY = -height / 2.0f, botZ = 0.0f;
-  // top center base coordinates
-  float topX = 0.0f, topY = height / 2.0f, topZ = 0.0f;
+  Shapes::DebugVertex botCenterVertex {
+    Shapes::DebugColor(0.0f, 0.0f, 1.0f, 1.0f),
+    MathUtils::Vector3(0.0f, -height * 0.5f, 0.0f),
+    MathUtils::Vector3(0.0f, -1.0f, 0.0f)
+  };
 
-  vertices.push_back(botX);
-  vertices.push_back(botY);
-  vertices.push_back(botZ);
-  vertices.push_back(topX);
-  vertices.push_back(topY);
-  vertices.push_back(topZ);
+  Shapes::DebugVertex topCenterVertex {
+    Shapes::DebugColor(0.0f, 0.0f, 1.0f, 1.0f),
+    MathUtils::Vector3(0.0f, height * 0.5f, 0.0f),
+    MathUtils::Vector3(0.0f, 1.0f, 0.0f)
+  };
+
+  vertices.push_back(botCenterVertex);
+  vertices.push_back(topCenterVertex);
 
   // bottom cap
   for (int i = 0;i < unitVertices.size(); i += 3) {
@@ -75,9 +86,13 @@ std::vector<float> Shapes::Cylinder::createCylinderVertices()
     float uy = -height / 2.0f;
     float uz = unitVertices[i+2];
 
-    vertices.push_back(bottomRadius * ux);
-    vertices.push_back(uy);
-    vertices.push_back(bottomRadius * uz);
+    Shapes::DebugVertex vertex {
+      Shapes::DebugColor(0.0f, 0.0f, 1.0f, 1.0f),
+      MathUtils::Vector3(bottomRadius * ux, uy, bottomRadius * uz),
+      MathUtils::Vector3(0.0f, -1.0f, 0.0f)
+    };
+
+    vertices.push_back(vertex);
   }
 
   // top cap
@@ -86,22 +101,39 @@ std::vector<float> Shapes::Cylinder::createCylinderVertices()
     float uy = height / 2.0f;
     float uz = unitVertices[i+2];
 
-    vertices.push_back(topRadius * ux);
-    vertices.push_back(uy);
-    vertices.push_back(topRadius * uz);
+    Shapes::DebugVertex vertex {
+      Shapes::DebugColor(0.0f, 0.0f, 1.0f, 1.0f),
+      MathUtils::Vector3(bottomRadius * ux, uy, bottomRadius * uz),
+      MathUtils::Vector3(0.0f, 1.0f, 0.0f)
+    };
+
+    vertices.push_back(vertex);
   }
 
   // side vertices
   for (int i = 0;i < unitVertices.size(); i += 3) {
-    vertices.push_back(bottomRadius * unitVertices[i]);
-    vertices.push_back(-height / 2.0f);
-    vertices.push_back(bottomRadius * unitVertices[i+2]);
+    float ux = unitVertices[i], uz = unitVertices[i+2];
+
+    // forms bottom layer ring
+    Shapes::DebugVertex bottomLayerVertex {
+      Shapes::DebugColor(0.0f, 0.0f, 1.0f, 1.0f),
+      MathUtils::Vector3(bottomRadius * ux, -height * 0.5f, bottomRadius * uz),
+      MathUtils::Vector3(ux, 0.0f, uz)
+    };
+
+    vertices.push_back(bottomLayerVertex);
   }
 
   for (int i = 0;i < unitVertices.size(); i += 3) {
-    vertices.push_back(topRadius * unitVertices[i]);
-    vertices.push_back(height / 2.0f);
-    vertices.push_back(topRadius * unitVertices[i+2]);
+    float ux = unitVertices[i], uz = unitVertices[i+2];
+    // forms top layer ring
+    Shapes::DebugVertex topLayerVertex {
+      Shapes::DebugColor(0.0f, 0.0f, 1.0f, 1.0f),
+      MathUtils::Vector3(topRadius * ux, height * 0.5f, topRadius * uz),
+      MathUtils::Vector3(ux, 0.0f, uz)
+    };
+
+    vertices.push_back(topLayerVertex);
   }
 
   return vertices;

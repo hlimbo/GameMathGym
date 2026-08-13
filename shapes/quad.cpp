@@ -4,13 +4,31 @@
   #include <glad/glad.h> // desktop builds
 #endif
 
+#include <stddef.h>
+
 #include "quad.h"
 
 Shapes::Quad::Quad(): quadVertices {
-  -0.5f, 0.5f, 0.0f,    // top-left corner
-  -0.5f, -0.5f, 0.0f,   // bottom-left corner
-  0.5f, 0.5f, 0.0f,     // top right corner
-  0.5f, -0.5f, 0.0f,    // bottom-right corner
+  Shapes::DebugVertex {
+    Shapes::DebugColor(1.0f, 0.0f, 0.0f, 1.0f),
+    MathUtils::Vector3(-0.5f, 0.5f, 0.0f),    // top-left corner
+    MathUtils::Vector3(0.0f, 0.0f, -1.0f)
+  },
+  Shapes::DebugVertex {
+    Shapes::DebugColor(1.0f, 0.0f, 0.0f, 1.0f),
+    MathUtils::Vector3(-0.5f, -0.5f, 0.0f),   // bottom-left corner
+    MathUtils::Vector3(0.0f, 0.0f, -1.0f)
+  },
+  Shapes::DebugVertex {
+    Shapes::DebugColor(1.0f, 0.0f, 0.0f, 1.0f),  
+    MathUtils::Vector3(0.5f, 0.5f, 0.0f),     // top right corner
+    MathUtils::Vector3(0.0f, 0.0f, -1.0f)
+  },
+  Shapes::DebugVertex {
+    Shapes::DebugColor(1.0f, 0.0f, 0.0f, 1.0f),
+    MathUtils::Vector3(0.5f, -0.5f, 0.0f),    // bottom-right corner
+    MathUtils::Vector3(0.0f, 0.0f, -1.0f)
+  }
 }, quadIndices {
   // counter-clockwise order tris
   0, 1, 2,
@@ -25,9 +43,13 @@ Shapes::Quad::Quad(): quadVertices {
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 
-  GLsizei vertexStride = 3 * sizeof(float);
+  GLsizei vertexStride = sizeof(Shapes::DebugVertex);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, position));
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, color));
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexStride, (void*)offsetof(Shapes::DebugVertex, normal));
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW);

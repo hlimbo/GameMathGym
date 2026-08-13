@@ -9,8 +9,8 @@
 
 Shapes::Line::Line(): 
   lineVertices {
-    -0.5f, 0.0f, 0.0f, 
-    0.5f, 0.0f, 0.0f
+    MathUtils::Vector3 {-0.5f, 0.0f, 0.0f }, 
+    MathUtils::Vector3 { 0.5f, 0.0f, 0.0f }
   }, 
   lineIndices { 1, 0 }
 {

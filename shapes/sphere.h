@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <vector>
 
+#include "debug_vertex.h"
+
 namespace Shapes {
   class Sphere {
     private:
-      std::vector<float> sphereVertices;
+      std::vector<Shapes::DebugVertex> sphereVertices;
       std::vector<uint32_t> sphereIndices;
       uint32_t VAO;
       uint32_t VBO;
@@ -21,7 +23,7 @@ namespace Shapes {
       ~Sphere();
       void Draw();
     private:
-      std::vector<float> createSphereVertices();
+      std::vector<Shapes::DebugVertex> createSphereVertices();
       std::vector<uint32_t> createSphereIndices();
   };
 }

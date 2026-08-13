@@ -4,6 +4,8 @@
   #include <glad/glad.h> // desktop builds
 #endif
 
+#include <stddef.h>
+
 #include "shape_utils.h"
 #include "cone.h"
 
@@ -24,11 +26,15 @@ Shapes::Cone::Cone(uint32_t sectorCount, uint32_t stackCount, float baseRadius, 
   glGenBuffers(1, &EBO);
   
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * coneVertices.size(), coneVertices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Shapes::DebugVertex) * coneVertices.size(), coneVertices.data(), GL_STATIC_DRAW);
   
-  GLsizei vertexPositionStride = 3 * sizeof(float);
+  GLsizei vertexPositionStride = sizeof(Shapes::DebugVertex);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)offsetof(Shapes::DebugVertex, position));
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)offsetof(Shapes::DebugVertex, color));
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)offsetof(Shapes::DebugVertex, normal));
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * coneIndices.size(), coneIndices.data(), GL_STATIC_DRAW);
@@ -52,15 +58,17 @@ void Shapes::Cone::Draw()
   glBindVertexArray(0);
 }
 
-std::vector<float> Shapes::Cone::createConeVertices()
+std::vector<Shapes::DebugVertex> Shapes::Cone::createConeVertices()
 {
-  std::vector<float> vertices;
+  std::vector<Shapes::DebugVertex> vertices;
   std::vector<float> unitVertices = ShapeUtils::generateUnitCircleCoordinates(sectorCount);
 
-  float baseX = 0.0f, baseY = -height / 2.0f, baseZ = 0.0f;
-  vertices.push_back(baseX);
-  vertices.push_back(baseY);
-  vertices.push_back(baseZ);
+  Shapes::DebugVertex baseCenter {
+    Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 1.0f },
+    MathUtils::Vector3 { 0.0f, -height / 2.0f, 0.0f },
+    MathUtils::Vector3 { 0.0f, -1.0f, 0.0f }
+  };
+  vertices.push_back(baseCenter);
 
   // rings of the cone -- base and sides where base is the 0th ring and the sides are 1st rings to (stackCount - 1)th ring
   for (int i = 0;i < stackCount; ++i) {
@@ -71,17 +79,32 @@ std::vector<float> Shapes::Cone::createConeVertices()
     for (int j = 0, k = 0; j < sectorCount; ++j, k += 3) {
       float x = unitVertices[k] * radius;
       float z = unitVertices[k+2] * radius;
-      vertices.push_back(x);
-      vertices.push_back(y);
-      vertices.push_back(z);
+
+      MathUtils::Vector3 normal;
+      // At Base ring
+      if (i == 0) {
+        normal = MathUtils::Vector3(0.0f, -1.0f, 0.0f);
+      } else {
+        // Assumption: cylinder is formed on the origin
+        // where its tip is pointing upwards in global y direction (0, 1, 0). If it's not pointing upwards in global y, I would need to do a vector projection to find out the closest point to the current position that is being calculated.
+        normal = MathUtils::Vector3(unitVertices[k], 0.0f, unitVertices[k+2]);
+      }
+
+      Shapes::DebugVertex vertex {
+        Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 1.0f },
+        MathUtils::Vector3 { x, y, z },
+        normal,
+      };
+      vertices.push_back(vertex);
     }
   }
 
-  // tip
-  float tipX = 0.0f, tipY = height / 2.0f, tipZ = 0.0f;
-  vertices.push_back(tipX);
-  vertices.push_back(tipY);
-  vertices.push_back(tipZ);
+  Shapes::DebugVertex tip {
+    Shapes::DebugColor { 1.0f, 0.0f, 0.0f, 0.0f },
+    MathUtils::Vector3 { 0.0f, height / 2.0f, 0.0f },
+    MathUtils::Vector3 { 0.0f, 1.0f, 0.0f }
+  };
+  vertices.push_back(tip);
 
   return vertices;
 }

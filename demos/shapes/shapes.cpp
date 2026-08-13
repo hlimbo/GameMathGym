@@ -118,11 +118,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   /* Shapes Initialization */
   {
     // cube = new Shapes::Cube();
-    // quad = new Shapes::Quad();
+    //quad = new Shapes::Quad();
     // line = new Shapes::Line();
-    // sphere = new Shapes::Sphere(8, 8, 1.0f);
+    sphere = new Shapes::Sphere(8, 8, 1.0f);
     // circle = new Shapes::Circle(8, 4.0f);
-    cylinder = new Shapes::Cylinder(8, 1.0f, 1.0f, 4.0f);
+    //cylinder = new Shapes::Cylinder(8, 1.0f, 1.0f, 4.0f);
     // cone = new Shapes::Cone(32, 32, 1.0f, 4.0f);
   }
 
@@ -153,6 +153,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   glEnable(GL_CULL_FACE);
   // Enable Wireframe mode for both front and back faces
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+  std::cout << "sizeof vector3 " << sizeof(MathUtils::Vector3) << std::endl;
 
 
   return SDL_APP_CONTINUE;

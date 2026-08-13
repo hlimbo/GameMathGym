@@ -4,6 +4,8 @@
   #include <glad/glad.h> // desktop builds
 #endif
 
+#include <stddef.h>
+
 #include "math_utils/matrix4.h"
 #include "sphere.h"
 
@@ -22,11 +24,15 @@ Shapes::Sphere::Sphere(uint32_t sectorCount, uint32_t stackCount, float radius) 
   glGenBuffers(1, &EBO);
   
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * sphereVertices.size(), sphereVertices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Shapes::DebugVertex) * sphereVertices.size(), sphereVertices.data(), GL_STATIC_DRAW);
   
-  GLsizei vertexPositionStride = 3 * sizeof(float);
+  GLsizei vertexPositionStride = sizeof(Shapes::DebugVertex);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)offsetof(Shapes::DebugVertex, position));
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)offsetof(Shapes::DebugVertex, color));
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexPositionStride, (void*)offsetof(Shapes::DebugVertex, normal));
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * sphereIndices.size(), sphereIndices.data(), GL_STATIC_DRAW);
@@ -50,9 +56,9 @@ void Shapes::Sphere::Draw()
   glBindVertexArray(0);
 }
 
-std::vector<float> Shapes::Sphere::createSphereVertices()
+std::vector<Shapes::DebugVertex> Shapes::Sphere::createSphereVertices()
 {
-  std::vector<float> vertices;
+  std::vector<Shapes::DebugVertex> vertices;
 
   // stackStep <= stackCount accounts for top pole
   for (int stackStep = 0; stackStep <= stackCount; ++stackStep) {
@@ -67,13 +73,20 @@ std::vector<float> Shapes::Sphere::createSphereVertices()
       float sinTheta = (float)std::sin(theta);
       float cosTheta = (float)std::cos(theta);
 
-      float x = radius * cosPhi * cosTheta;
-      float y = radius * sinPhi;
-      float z = radius * cosPhi * sinTheta;
+      float nx = cosPhi * cosTheta;
+      float ny = sinPhi;
+      float nz = cosPhi * sinTheta;
+      float x = radius * nx;
+      float y = radius * ny;
+      float z = radius * nz;
 
-      vertices.push_back(x);
-      vertices.push_back(y);
-      vertices.push_back(z);
+      Shapes::DebugVertex vertex {
+        Shapes::DebugColor(0.85f, 0.25f, 0.35f, 1.0f),
+        MathUtils::Vector3(x, y, z),
+        MathUtils::Vector3(nx, ny, nz)
+      };
+
+      vertices.push_back(vertex);
     } 
   }
 
