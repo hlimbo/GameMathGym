@@ -8,6 +8,14 @@ target_sources(
     "../../math_utils/matrix4.cpp"
     "../../math_utils/vector3.cpp"
     "../../camera/camera.cpp"
+    "../../shapes/circle.cpp"
+    "../../shapes/cone.cpp"
+    "../../shapes/cube.cpp"
+    "../../shapes/cylinder.cpp"
+    "../../shapes/line.cpp"
+    "../../shapes/quad.cpp"
+    "../../shapes/sphere.cpp"
+    "../../shapes/shape_utils.cpp"
 )
 
 target_include_directories(
