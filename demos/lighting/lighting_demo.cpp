@@ -177,6 +177,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     // setup light's VAO (VBO stays the same, the vertices are the same for light object which is also a 3D cube)
     glGenVertexArrays(1, &lightCubeVAO);
@@ -322,6 +323,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   GLuint lightPosLoc = glGetUniformLocation(cubeShaderProgramId, "lightPos");
   glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z);
 
+  // camera world position
+  GLuint viewPosLoc = glGetUniformLocation(cubeShaderProgramId, "viewPos");
+  glUniform3f(viewPosLoc, mainCamPosition.x, mainCamPosition.y, mainCamPosition.z);
+
   // view/projection transformations
   auto projection = mainCamera.getProjectionMatrix();
   // camera view matrix
@@ -333,7 +338,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   // world transformations
   MathUtils::Matrix4 model(MathUtils::MAT4_IDENTITY);
-  model = model * MathUtils::makeScaleMatrix(MathUtils::Vector3(1.25f, 0.5f, 0.75f));
+  //model = model * MathUtils::makeScaleMatrix(MathUtils::Vector3(2.0f, 1.25f, 0.25f));
 
   GLuint modelLoc = glGetUniformLocation(cubeShaderProgramId, "model");
   glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model.cells);

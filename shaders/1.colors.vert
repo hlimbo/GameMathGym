@@ -15,6 +15,9 @@ void main()
 
 	// You take the transpose of the inverse of the upper-left part of the 3x3 model matrix so that when you scale an object non-uniformly (e.g. you scale a cube's x by 10 and y by 2.5 and z by 3 for example) the lighting model isn't distorted. This is called the normal matrix. This ensures the normal we pass to the fragment shader remains perpendicular to the surface.
 	// To learn more go through: http://www.lighthouse3d.com/tutorials/glsl-tutorial/the-normal-matrix/
+	// Supposedly, doing inverse matrix operations in shader code is inefficient as it has to do it for every single vertex in the scene
+	// A better way could be to pre-compute the transpose of the inverse and send it over to the GPU to use later on. Compute NormalMatrix once then reuse the same normal matrix
+	// for all vertices on the mesh in the vertex shader
 	mat3 NormalMatrix = mat3(transpose(inverse(model)));
 	Normal = NormalMatrix * aNormal;
 }
