@@ -49,7 +49,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY; 
   win = SDL_CreateWindow(WINDOW_NAME, (int)(WIDTH * mainScale), (int)(HEIGHT * mainScale), windowFlags);
 
-
   glContext = SDL_GL_CreateContext(win);
   SDL_GL_MakeCurrent(win, glContext);
   SDL_GL_SetSwapInterval(1); // enable vsync
@@ -71,6 +70,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     std::cout << "Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
   }
 
+  // Draw vertices that are facing in front of camera and vertices behind other vertices are culled away
+  glEnable(GL_DEPTH_TEST);
+  // discards triangles facing away from camera
+  glEnable(GL_CULL_FACE);
+
   return SDL_APP_CONTINUE;
 }
 
@@ -84,6 +88,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
+
+  // render background solid color
+  glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+  SDL_GL_SwapWindow(win);
+
   return SDL_APP_CONTINUE;
 }
 
