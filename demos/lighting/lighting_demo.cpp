@@ -16,6 +16,12 @@
 #include "math_utils/vector3.h"
 #include "math_utils/matrix4.h"
 
+/* Shapes */
+#include "shapes/cube.h"
+#include "shapes/cylinder.h"
+#include "shapes/cone.h"
+#include "shapes/sphere.h"
+
 const char* WINDOW_NAME = "Lighting Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
@@ -81,6 +87,13 @@ GLuint lightShaderProgramId;
 
 GLuint cubeVAO, lightCubeVAO;
 GLuint VBO;
+
+/* Shapes */
+Shapes::Cube* cube = nullptr;
+Shapes::Cylinder* cylinder = nullptr;
+Shapes::Cone* cone = nullptr;
+Shapes::Sphere* sphere = nullptr;
+/* End Shapes*/
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
@@ -165,27 +178,23 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
   /* Vertex Buffers Initialization */
   {
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &VBO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // cube = new Shapes::Cube();
+    uint32_t sectorCount = 16;
+    float radius = 1.0f;
+    float height = 1.0f;
+    // cylinder = new Shapes::Cylinder(sectorCount, radius, radius, height);
+    // cone = new Shapes::Cone(sectorCount, sectorCount, radius, height);
+    sphere = new Shapes::Sphere(sectorCount, sectorCount, radius);
 
-    glBindVertexArray(cubeVAO);
-
-    // position attribute sent to vertex shader
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
 
     // setup light's VAO (VBO stays the same, the vertices are the same for light object which is also a 3D cube)
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
     glGenVertexArrays(1, &lightCubeVAO);
     glBindVertexArray(lightCubeVAO);
-
-    // only need to bind the VBO as its been allocated with buffer data previously from cubeVAO
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
     // for this cube, we reuse its vertex positioning but don't use its normals at all for the lighting...
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -224,7 +233,12 @@ float speed = 2.0f;
 // measured in milliseconds
 Uint64 currentTime, lastTime = 0;
 
+MathUtils::Vector3 cubePos(0.0f, 0.0f, 0.0f);
 MathUtils::Vector3 lightPos(1.2f, 1.0f, 2.0f);
+// angle relative to the cube -- y position is locked in place
+float startingAngleRadians = std::atan2(lightPos.z, lightPos.x);
+float angleRadians = startingAngleRadians;
+float cubeToLightRadius = (lightPos - cubePos).magnitude();
 
 // Mouse Camera Controls
 float mX = 0.0f, mY = 0.0f;
@@ -310,19 +324,26 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   newViewMat = newViewMat * MathUtils::makeTranslationMatrix(velocity);
   mainCamera.setViewMatrix(newViewMat);
 
+  // Logic to rotate light source around cube where y position remains constant
+  MathUtils::Vector3 newLightPos(
+    std::cos(angleRadians) * cubeToLightRadius,
+    lightPos.y,
+    std::sin(angleRadians) * cubeToLightRadius
+  );
+
+  //lightPos = newLightPos;
+  angleRadians += deltaTime;
+
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glUseProgram(cubeShaderProgramId);
 
-  GLuint objectColorLoc = glGetUniformLocation(cubeShaderProgramId, "objectColor");
-  glUniform3f(objectColorLoc, 1.0f, 0.5f, 0.31f);
   GLuint lightColorLoc = glGetUniformLocation(cubeShaderProgramId, "lightColor");
   glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
   GLuint lightPosLoc = glGetUniformLocation(cubeShaderProgramId, "lightPos");
   glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z);
-
   // camera world position
   GLuint viewPosLoc = glGetUniformLocation(cubeShaderProgramId, "viewPos");
   glUniform3f(viewPosLoc, mainCamPosition.x, mainCamPosition.y, mainCamPosition.z);
@@ -335,18 +356,29 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection.cells);
   GLuint viewLoc = glGetUniformLocation(cubeShaderProgramId, "view");
   glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view.cells);
-
   // world transformations
   MathUtils::Matrix4 model(MathUtils::MAT4_IDENTITY);
-  //model = model * MathUtils::makeScaleMatrix(MathUtils::Vector3(2.0f, 1.25f, 0.25f));
-
   GLuint modelLoc = glGetUniformLocation(cubeShaderProgramId, "model");
   glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model.cells);
 
-  // render cube
-  glBindVertexArray(cubeVAO);
-  glDrawArrays(GL_TRIANGLES, 0, 36);
-  glBindVertexArray(0);
+  /* Render Shapes */
+  {
+    if (cube != nullptr) {
+      cube->Draw();
+    }
+
+    if (cylinder != nullptr) {
+      cylinder->Draw();
+    }
+
+    if (cone != nullptr) {
+      cone->Draw();
+    }
+
+    if (sphere != nullptr) {
+      sphere->Draw();
+    }
+  }
 
   // draw lamp object
   glUseProgram(lightShaderProgramId);

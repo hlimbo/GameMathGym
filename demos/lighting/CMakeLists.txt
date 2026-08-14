@@ -7,6 +7,11 @@ target_sources(
     "../../utils/shader_utils.cpp"
     "../../math_utils/matrix4.cpp"
     "../../math_utils/vector3.cpp"
+    "../../shapes/cube.cpp"
+    "../../shapes/cylinder.cpp"
+    "../../shapes/cone.cpp"
+    "../../shapes/sphere.cpp"
+    "../../shapes/shape_utils.cpp"
     lighting_demo.cpp
 )
 

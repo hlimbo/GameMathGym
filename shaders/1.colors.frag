@@ -1,13 +1,15 @@
 out vec4 FragColor;
 
 // gets sent from the game engine via OpenGL uniform function helpers
-uniform vec3 objectColor;
 uniform vec3 lightColor;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
 in vec3 FragPos; // world position of a vertex received from the vertex shader
 in vec3 Normal;
+// color coming in from vertex shader
+in vec4 VertexLighting;
+in vec4 VertexColor;
 
 void ambientLighting() 
 {
@@ -15,7 +17,7 @@ void ambientLighting()
     float ambientStrength = 0.1;
     vec3 ambient = ambientStrength * lightColor;
 
-    vec3 result = ambient * objectColor;
+    vec3 result = ambient * VertexColor.rgb;
     FragColor = vec4(result, 1.0);
 }
 
@@ -36,7 +38,7 @@ void lambertLighting()
     // if max(dot) > 0 then there is some light being applied to the mesh
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
-    vec3 result = (ambient + diffuse) * objectColor;
+    vec3 result = (ambient + diffuse) * VertexColor.rgb;
     FragColor = vec4(result, 1.0);
 }
 
@@ -56,7 +58,7 @@ void specularLighting()
     vec3 reflectDir = reflect(-lightDir, norm);
 
     // specular lighting calculation
-    int shininess = 128; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
+    int shininess = 32; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
     vec3 specular = specularStrength * spec * lightColor;
 
@@ -67,11 +69,13 @@ void specularLighting()
     // if max(dot) > 0 then there is some light being applied to the mesh
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
-    vec3 result = (ambient + diffuse + specular) * objectColor;
+    vec3 result = (ambient + diffuse + specular) * VertexColor.rgb;
     FragColor = vec4(result, 1.0);
 }
 
 void main()
 {
     specularLighting();
+    // Goraud Shading
+    // FragColor = vec4(VertexLighting.rgb * VertexColor.rgb, 1.0);
 }
