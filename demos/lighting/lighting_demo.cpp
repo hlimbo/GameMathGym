@@ -9,6 +9,10 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 
+#define STB_IMAGE_IMPLEMENTATION // this ensures the code can compile and successfully link -- without this, it will generate LNK2019 errors for stbi_load and stbi_image_free functions
+#include <stb_image.h>
+
+
 #include <iostream>
 
 #include "camera/camera.h"
@@ -81,9 +85,12 @@ const std::string vertShaderSrc("shaders/1.colors.vert");
 const std::string fragShaderSrc("shaders/1.colors.frag");
 const std::string vertShaderSrc2("shaders/1.light_cube.vert");
 const std::string fragShaderSrc2("shaders/1.light_cube.frag");
+const std::string vertShaderSrc3("shaders/outline_shader.vert");
+const std::string fragShaderSrc3("shaders/outline_shader.frag");
 
 GLuint cubeShaderProgramId;
 GLuint lightShaderProgramId;
+GLuint outlineShaderProgramId;
 
 GLuint cubeVAO, lightCubeVAO;
 GLuint VBO;
@@ -94,6 +101,10 @@ Shapes::Cylinder* cylinder = nullptr;
 Shapes::Cone* cone = nullptr;
 Shapes::Sphere* sphere = nullptr;
 /* End Shapes*/
+
+GLuint toonRampTex;
+
+GLuint loadTexture(const char* path);
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
@@ -174,12 +185,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     glDeleteShader(vertShaderId);
     glDeleteShader(fragShaderId);
+
+    vertShaderId = ShaderUtils::LoadAndCreateShaderSource(vertShaderSrc3, GL_VERTEX_SHADER);
+    fragShaderId = ShaderUtils::LoadAndCreateShaderSource(fragShaderSrc3, GL_FRAGMENT_SHADER);
+   
+    ShaderUtils::VerifyShaderCompilationStatus(vertShaderId, vertShaderSrc);
+    ShaderUtils::VerifyShaderCompilationStatus(fragShaderId, fragShaderSrc);
+
+    outlineShaderProgramId = ShaderUtils::CreateShaderProgram(vertShaderId, fragShaderId);
+    ShaderUtils::VerifyShaderProgramLinkStatus(outlineShaderProgramId);
+
+    glDeleteShader(vertShaderId);
+    glDeleteShader(fragShaderId);
   }
 
   /* Vertex Buffers Initialization */
   {
 
-    // cube = new Shapes::Cube();
+    //cube = new Shapes::Cube();
     uint32_t sectorCount = 16;
     float radius = 1.0f;
     float height = 1.0f;
@@ -199,6 +222,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
   }
+
+  toonRampTex = loadTexture("textures/ToonRamp.png");
 
   /* Setup Keyboard Controls */
   keyStates = SDL_GetKeyboardState(NULL);
@@ -331,14 +356,22 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     std::sin(angleRadians) * cubeToLightRadius
   );
 
-  //lightPos = newLightPos;
+  lightPos = newLightPos;
   angleRadians += deltaTime;
 
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_BACK);
+
   glUseProgram(cubeShaderProgramId);
+
+  // Bind texture to default texture unit 0
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, toonRampTex);
+  glUniform1i(glGetUniformLocation(cubeShaderProgramId, "toonRamp"), 0);
 
   GLuint lightColorLoc = glGetUniformLocation(cubeShaderProgramId, "lightColor");
   glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
@@ -380,6 +413,45 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     }
   }
 
+  /* 2nd Render Pass to add Outline to shape via inverted hull method */
+
+  // draw back of hull only
+  glCullFace(GL_FRONT);
+  // use invertedHull shader program
+  glUseProgram(outlineShaderProgramId);
+  // set projection, view, and model matrices to this shader program
+  projLoc = glGetUniformLocation(outlineShaderProgramId, "projection");
+  viewLoc = glGetUniformLocation(outlineShaderProgramId, "view");
+  modelLoc = glGetUniformLocation(outlineShaderProgramId, "model");
+
+  glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection.cells);
+  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view.cells);
+  glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model.cells);
+  
+  // Draw same mesh again using the outline shader
+  {
+    if (cube != nullptr) {
+      cube->Draw();
+    }
+
+    if (cylinder != nullptr) {
+      cylinder->Draw();
+    }
+
+    if (cone != nullptr) {
+      cone->Draw();
+    }
+
+    if (sphere != nullptr) {
+      sphere->Draw();
+    }
+  }
+
+  // restore to culling the back faces
+  glCullFace(GL_BACK);
+  glDisable(GL_CULL_FACE);
+
+
   // draw lamp object
   glUseProgram(lightShaderProgramId);
   // set projection view matrix
@@ -405,6 +477,11 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+  delete cube;
+  delete cylinder;
+  delete cone;
+  delete sphere;
+  
   if (glContext) {
     SDL_GL_DestroyContext(glContext);
   }
@@ -415,4 +492,34 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 
   SDL_Quit();
   std::cout << "shutting down SDL3 game app" << std::endl;
+}
+
+GLuint loadTexture(const char* path) {
+  GLuint textureId;
+  glGenTextures(1, &textureId);
+  glBindTexture(GL_TEXTURE_2D, textureId);
+
+  int width, height, colorChannelsCount;
+  // keep image right side up rather than being upside down
+  stbi_set_flip_vertically_on_load(true);
+  unsigned char* data = stbi_load(path, &width, &height, &colorChannelsCount, 0);
+
+  if (data) {
+    GLenum format = (colorChannelsCount == 4) ? GL_RGBA : GL_RGB;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    // Clamp to edge to prevent texture wrapping artifacts at extreme angles
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // set to gl nearest so that the color sampling remains crisp
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  }
+
+  stbi_image_free(data);
+  data = nullptr;
+
+  return textureId;
 }

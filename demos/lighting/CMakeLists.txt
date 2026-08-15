@@ -18,6 +18,7 @@ target_sources(
 target_include_directories(
   ${PROGRAM_NAME}
   PRIVATE
+    ${Stb_INCLUDE_DIR}
     # allows this program to know that the header files for utils is in the root directory of this project
     "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
