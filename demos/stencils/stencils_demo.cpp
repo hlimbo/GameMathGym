@@ -18,7 +18,23 @@
 #include "shapes/cube.h"
 #include "utils/shader_utils.h"
 
-const char* WINDOW_NAME = "Boilerplate Code to use to quickly setup new demos";
+/* 
+  This code sample shows how to do Object Outlining through
+  Stencil Testing:
+
+  Steps:
+  1. enable stencil writing via glEnable(GL_STENCIL_TEST);
+  2. Set the stencil op to GL_ALWAYS before drawing to the outlined objects, updating the stencil buffer with 1s wherever the objects' fragments are rendered
+  3. render the objects
+  4. disable stencil writing and depth testing
+  5. scale each of the objects by a small amount
+  6. Use a different fragment shader that outputs a single border color
+  7. Draw objects again, but only if their fragments' stencil values are not equal to 1.
+  8. Enable depth testing again and restor stencil func to GL_KEEP
+
+*/
+
+const char* WINDOW_NAME = "Stencils Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
 const int WIDTH = 1280;
@@ -27,8 +43,10 @@ const int HEIGHT = 800;
 const bool* keyStates = nullptr;
 
 GLuint cubeShaderProgramId;
+GLuint stencilShaderId;
 const std::string vertShaderSrc("shaders/cube.vert");
 const std::string fragShaderSrc("shaders/cube.frag");
+const std::string stencilShaderSrc("shaders/stencil.frag");
 Shapes::Cube* cube = nullptr;
 MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -1.0f)));
 
@@ -99,6 +117,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     glDeleteShader(vertShaderId);
     glDeleteShader(fragShaderId);
+
+    vertShaderId = ShaderUtils::LoadAndCreateShaderSource(vertShaderSrc, GL_VERTEX_SHADER);
+    fragShaderId = ShaderUtils::LoadAndCreateShaderSource(stencilShaderSrc, GL_FRAGMENT_SHADER);
+
+    ShaderUtils::VerifyShaderCompilationStatus(vertShaderId, vertShaderSrc);
+    ShaderUtils::VerifyShaderCompilationStatus(fragShaderId, fragShaderSrc);
+
+    stencilShaderId = ShaderUtils::CreateShaderProgram(vertShaderId, fragShaderId);
+
+    ShaderUtils::VerifyShaderProgramLinkStatus(cubeShaderProgramId);
+
+    glDeleteShader(vertShaderId);
+    glDeleteShader(fragShaderId);
   }
 
   cube = new Shapes::Cube();
@@ -110,6 +141,50 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   glEnable(GL_DEPTH_TEST);
   // discards triangles facing away from camera
   glEnable(GL_CULL_FACE);
+
+  /* Enable Stencil Test */
+  /*
+    Stencil Buffer is a rectangle of 1s initialized where:
+    - 1 means render that part of the image in screen space
+    - 0 means do not render that part of the image in screen space
+
+    - glStencilMask(0xFF); // each bit is written to stencil buffer as is
+    - glStencilMask(0x00); // each bit ends up as 0 in stencil buffer disabling writes
+
+    What does glStencilFunc do?
+
+    glStencilFunc(GLenum func, GLint ref, GLuint mask)
+    - func - sets stencil test function that determines whether a fragment passes or is discarded. This test is applied to the stored stencil value and the glSTencilFunc's ref value. Possible options are:
+      - GL_NEVER
+      - GL_LESS
+      - GL_LEQUAL
+      - GL_GREATER
+      - GL_GEQUAL
+      - GL_EQUAL
+      - GL_NOTEQUAL
+      - GL_ALWAYS
+    - ref specifies reference value for stencil test. The stencil buffer's content is compared to this value
+    - mask specifies a mask that is ANDed with both the reference value and the stored stencil value before the test compares them. Initially set to all 1s.
+
+    For example a simple stencil would be:
+    * glStencilFunc(GL_EQUAL, 1, 0xFF);
+        - this says that whatever the stencil value of the fragment is equal to 1 will be passed and drawn; otherwise discard it
+    * glStencilFunc describes whether OpenGL should pass or discard fragments based on stencil buffer's content.
+
+    glStencilOp(GLenum sfail, GLenum dpfail, GLenum dppass)
+    - sfail - action to take if stencil test fails
+    - dpfail - action to take if stencil test passes but depth test fails
+    - dppass - action to take if both stencil and depth test pass
+
+    By default glStencilOp does glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+
+  */
+  glEnable(GL_STENCIL_TEST);
+  // - keep values when stencil test fails
+  // - keep values when depth test fails
+  // - replace stencil values when depth test and stencil test pass
+  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
 
   return SDL_APP_CONTINUE;
 }
@@ -225,10 +300,19 @@ currentTime = SDL_GetTicks();
 
   // render background solid color
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  // need to clear the stencil buffer for each time the render loop updates
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
   glUseProgram(cubeShaderProgramId);
 
+  // all fragments should pass the stencil test
+  // 0xFF = 255
+  glStencilFunc(GL_ALWAYS, 1, 0xFF);
+  // enable writing to stencil buffer
+  glStencilMask(0xFF);
+
+  /* 1st render pass, draw objects as normal and write to stencil buffer */
   auto viewMat = mainCamera.getViewMatrix();
   auto projMat = mainCamera.getProjectionMatrix();
 
@@ -242,6 +326,35 @@ currentTime = SDL_GetTicks();
   if (cube != nullptr) {
     cube->Draw();
   }
+
+  /* 2nd render pass */
+  // draw the upscaled cube and disable stencil writing
+  glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+  // disable writing to stencil buffer
+  glStencilMask(0x00);
+  glDisable(GL_DEPTH_TEST);
+
+  // upscale the cube
+  MathUtils::Matrix4 upscaleModelMat(modelMat * MathUtils::makeScaleMatrix(1.1f));
+
+  // use the stencil frag shader
+  glUseProgram(stencilShaderId);
+  modelLoc = glGetUniformLocation(stencilShaderId, "model");
+  viewLoc = glGetUniformLocation(stencilShaderId, "view");
+  projLoc = glGetUniformLocation(stencilShaderId, "projection");
+  glUniformMatrix4fv(modelLoc, 1, GL_FALSE, upscaleModelMat.cells);
+  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
+  glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
+  if (cube != nullptr) {
+    cube->Draw();
+  }
+
+  // disable stencil mask
+  glStencilMask(0xFF);
+  // always draw the stencil
+  glStencilFunc(GL_ALWAYS, 1, 0XFF);
+  // re-enable depth testing for the next frame
+  glEnable(GL_DEPTH_TEST);
 
 
   SDL_GL_SwapWindow(win);
