@@ -63,6 +63,7 @@ if (DEMOS_FEATURE_INDEX GREATER -1)
   add_subdirectory("demos/shapes")
   add_subdirectory("demos/lighting")
   add_subdirectory("demos/stencils")
+  add_subdirectory("demos/framebuffers")
 endif()
 
 string (FIND "${VCPKG_MANIFEST_FEATURES}" "unit-tests" UNIT_TEST_FEATURE_INDEX)

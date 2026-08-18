@@ -17,24 +17,9 @@
 
 #include "shapes/cube.h"
 #include "utils/shader_utils.h"
+#include "utils/texture_utils.h"
 
-/* 
-  This code sample shows how to do Object Outlining through
-  Stencil Testing:
-
-  Steps:
-  1. enable stencil writing via glEnable(GL_STENCIL_TEST);
-  2. Set the stencil op to GL_ALWAYS before drawing to the outlined objects, updating the stencil buffer with 1s wherever the objects' fragments are rendered
-  3. render the objects
-  4. disable stencil writing and depth testing
-  5. scale each of the objects by a small amount
-  6. Use a different fragment shader that outputs a single border color
-  7. Draw objects again, but only if their fragments' stencil values are not equal to 1.
-  8. Enable depth testing again and restor stencil func to GL_KEEP
-
-*/
-
-const char* WINDOW_NAME = "Stencils Demo";
+const char* WINDOW_NAME = "Framebuffers Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
 const int WIDTH = 1280;
@@ -43,12 +28,33 @@ const int HEIGHT = 800;
 const bool* keyStates = nullptr;
 
 GLuint cubeShaderProgramId;
-GLuint stencilShaderId;
 const std::string vertShaderSrc("shaders/cube.vert");
 const std::string fragShaderSrc("shaders/cube.frag");
-const std::string stencilShaderSrc("shaders/stencil.frag");
+const std::string vertShaderSrc2("shaders/framebuffers_demo.vert");
+const std::string fragShaderSrc2("shaders/framebuffers_demo.frag");
 Shapes::Cube* cube = nullptr;
 MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -1.0f)));
+
+/* Framebuffer Variables */
+GLuint fbo;
+GLuint texture;
+GLuint depthStencilTexture;
+GLuint fboShaderProgramId;
+GLuint quadVAO, quadVBO;
+GLuint quadTexture;
+
+// Contains Positions and texCoords
+// Positions are in 2D NDC coordinates
+// texCoords are the UV coordinates ranging between 0 to 1 for both the U and V axes.
+float quadVertices[] = {
+  -1.0f, 1.0f, 0.0f, 1.0f,
+  -1.0f, -1.0f, 0.0f, 0.0f,
+  1.0f, -1.0f, 1.0f, 0.0f,
+  
+  -1.0f, 1.0f, 0.0f, 1.0f,
+  1.0f, -1.0f, 1.0f, 0.0f,
+  1.0f, 1.0f, 1.0f, 1.0f,
+};
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
@@ -118,15 +124,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glDeleteShader(vertShaderId);
     glDeleteShader(fragShaderId);
 
-    vertShaderId = ShaderUtils::LoadAndCreateShaderSource(vertShaderSrc, GL_VERTEX_SHADER);
-    fragShaderId = ShaderUtils::LoadAndCreateShaderSource(stencilShaderSrc, GL_FRAGMENT_SHADER);
+    vertShaderId = ShaderUtils::LoadAndCreateShaderSource(vertShaderSrc2, GL_VERTEX_SHADER);
+    fragShaderId = ShaderUtils::LoadAndCreateShaderSource(fragShaderSrc2, GL_FRAGMENT_SHADER);
 
-    ShaderUtils::VerifyShaderCompilationStatus(vertShaderId, vertShaderSrc);
-    ShaderUtils::VerifyShaderCompilationStatus(fragShaderId, fragShaderSrc);
+    ShaderUtils::VerifyShaderCompilationStatus(vertShaderId, vertShaderSrc2);
+    ShaderUtils::VerifyShaderCompilationStatus(fragShaderId, fragShaderSrc2);
 
-    stencilShaderId = ShaderUtils::CreateShaderProgram(vertShaderId, fragShaderId);
-
-    ShaderUtils::VerifyShaderProgramLinkStatus(cubeShaderProgramId);
+    fboShaderProgramId = ShaderUtils::CreateShaderProgram(vertShaderId, fragShaderId);
+    ShaderUtils::VerifyShaderProgramLinkStatus(fboShaderProgramId);
 
     glDeleteShader(vertShaderId);
     glDeleteShader(fragShaderId);
@@ -142,49 +147,79 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   // discards triangles facing away from camera
   glEnable(GL_CULL_FACE);
 
-  /* Enable Stencil Test */
-  /*
-    Stencil Buffer is a rectangle of 1s initialized where:
-    - 1 means render that part of the image in screen space
-    - 0 means do not render that part of the image in screen space
+  // draw as wireframe -- uncomment this line to verify its rendering the fbo on top of the camera
+  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    - glStencilMask(0xFF); // each bit is written to stencil buffer as is
-    - glStencilMask(0x00); // each bit ends up as 0 in stencil buffer disabling writes
 
-    What does glStencilFunc do?
+  /* Load Quad Texture */
+  {
+    quadTexture = TextureUtils::loadTexture("textures/container.jpg");
+  }
 
-    glStencilFunc(GLenum func, GLint ref, GLuint mask)
-    - func - sets stencil test function that determines whether a fragment passes or is discarded. This test is applied to the stored stencil value and the glSTencilFunc's ref value. Possible options are:
-      - GL_NEVER
-      - GL_LESS
-      - GL_LEQUAL
-      - GL_GREATER
-      - GL_GEQUAL
-      - GL_EQUAL
-      - GL_NOTEQUAL
-      - GL_ALWAYS
-    - ref specifies reference value for stencil test. The stencil buffer's content is compared to this value
-    - mask specifies a mask that is ANDed with both the reference value and the stored stencil value before the test compares them. Initially set to all 1s.
+  /* Create Quad Buffers */
+  {
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
 
-    For example a simple stencil would be:
-    * glStencilFunc(GL_EQUAL, 1, 0xFF);
-        - this says that whatever the stencil value of the fragment is equal to 1 will be passed and drawn; otherwise discard it
-    * glStencilFunc describes whether OpenGL should pass or discard fragments based on stencil buffer's content.
+    GLsizei strideSize = 4 * sizeof(float);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, strideSize, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, strideSize, (void*)(2 * sizeof(float)));
+  }
 
-    glStencilOp(GLenum sfail, GLenum dpfail, GLenum dppass)
-    - sfail - action to take if stencil test fails
-    - dpfail - action to take if stencil test passes but depth test fails
-    - dppass - action to take if both stencil and depth test pass
+  // set texture to shader
+  glUseProgram(fboShaderProgramId);
+  glUniform1i(glGetUniformLocation(fboShaderProgramId, "screenTexture"), 0);
 
-    By default glStencilOp does glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
 
-  */
-  glEnable(GL_STENCIL_TEST);
-  // - keep values when stencil test fails
-  // - keep values when depth test fails
-  // - replace stencil values when depth test and stencil test pass
-  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+  /* Creating a framebuffer */
+  {
+    glGenFramebuffers(1, &fbo);
+    // this binds read and write operations to fbo - rendering logic is done offscreen
+    // fbo ID = 0 is the default framebuffer that OpenGL comes with when you create an opengl context for the first time.
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+    /* 
+      For a framebuffer to be complete it needs:
+      1. Attach at least one buffer (could be color, depth, or stencil buffer)
+      2. Have at least one color attachment
+      3. All attachments should be complete
+      4. Each buffer should have same number of samples
+    */
+
+    // Doing a Texture Attachment to FBO
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    // allocates information about the texture
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // attach texture to fbo
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+    // Do a Depth and Stencil Attachment to FBO
+    // 24 bits represent depth information and 8 bits represent stencil information
+    glGenTextures(1, &depthStencilTexture);
+    glBindTexture(GL_TEXTURE_2D, depthStencilTexture);
+    glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT, 0,
+      GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL
+    );
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthStencilTexture, 0);
+
+    // verify if framebuffer is complete
+    GLenum framebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (framebufferStatus != GL_FRAMEBUFFER_COMPLETE) {
+      std::cout << "framebuffer not complete!" << std::hex << framebufferStatus << "\n";
+    }
+
+    // bind back to the main framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
 
   return SDL_APP_CONTINUE;
 }
@@ -298,21 +333,16 @@ currentTime = SDL_GetTicks();
   mainCamera.setViewMatrix(newViewMat);
 
 
-  // render background solid color
-  glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+  /* First Render Pass */
 
-  // need to clear the stencil buffer for each time the render loop updates
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  // bind framebuffer and draw scene to the fbo
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glEnable(GL_DEPTH_TEST);
 
   glUseProgram(cubeShaderProgramId);
 
-  // all fragments should pass the stencil test
-  // 0xFF = 255
-  glStencilFunc(GL_ALWAYS, 1, 0xFF);
-  // enable writing to stencil buffer
-  glStencilMask(0xFF);
-
-  /* 1st render pass, draw objects as normal and write to stencil buffer */
   auto viewMat = mainCamera.getViewMatrix();
   auto projMat = mainCamera.getProjectionMatrix();
 
@@ -327,34 +357,22 @@ currentTime = SDL_GetTicks();
     cube->Draw();
   }
 
-  /* 2nd render pass */
-  // draw the upscaled cube and disable stencil writing
-  glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-  // disable writing to stencil buffer
-  glStencilMask(0x00);
+  /* Second Pass */
+
+  // bind back to the main framebuffer
+  // and draw a quad plane with the attached framebuffer color texture
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  // disable depth test so screen space quad isn't discarded due to depth test
   glDisable(GL_DEPTH_TEST);
+  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
 
-  // upscale the cube
-  MathUtils::Matrix4 upscaleModelMat(modelMat * MathUtils::makeScaleMatrix(1.05f));
+  glUseProgram(fboShaderProgramId);
+  glBindVertexArray(quadVAO);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
 
-  // use the stencil frag shader
-  glUseProgram(stencilShaderId);
-  modelLoc = glGetUniformLocation(stencilShaderId, "model");
-  viewLoc = glGetUniformLocation(stencilShaderId, "view");
-  projLoc = glGetUniformLocation(stencilShaderId, "projection");
-  glUniformMatrix4fv(modelLoc, 1, GL_FALSE, upscaleModelMat.cells);
-  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
-  glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
-  if (cube != nullptr) {
-    cube->Draw();
-  }
-
-  // disable stencil mask
-  glStencilMask(0xFF);
-  // always draw the stencil
-  glStencilFunc(GL_ALWAYS, 1, 0XFF);
-  // re-enable depth testing for the next frame
-  glEnable(GL_DEPTH_TEST);
+  glBindVertexArray(0);
 
 
   SDL_GL_SwapWindow(win);
