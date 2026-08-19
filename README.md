@@ -1,3 +1,11 @@
+# Software Dependencies List
+* Visual Studio 2022
+* VCPKG
+* Ninja Build Generator
+* EMSDK for emscripten web builds
+  * Pyenv for windows
+  * Python 3.10 or higher
+
 # Install Visual Studio 2022 MSCVC 2022 Developer console
 * To install the MSVC 2022 Developer console, follow this link:
 * https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#evergreen-bootstrappers
@@ -44,6 +52,31 @@
 
 **NOTE:** For the `Path` environment variable, this will be the absolute path to the folder containing the embedded emsdk python executable. For example, the absolute path could be `C:\\Cpp\\emsdk\\python\\3.13.3_64bit` on Windows machines. This fixes an error where the embedded emsdk python version cannot be found where cmake stops the configuration step prematurely.
 
+
+How to add Developer Powershell (VS 2022) as a terminal option onto Visual Studio Code?
+1. Hit Ctrl + Shift + p to open up the search bar
+2. type in "Preferences: Open User Settings (JSON)" in the search bar
+3. Paste in the Developer Powershell (VS 2022) settings below:
+```json
+    "terminal.integrated.profiles.windows": {
+        
+        "CMD Prompt": {
+            "path": "C:\\Windows\\System32\\cmd.exe"
+        },
+        "Developer PowerShell (VS 2022)": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell",
+            "args": [
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", 
+                "& 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\Launch-VsDevShell.ps1'",
+                "-Arch amd64",
+                "-SkipAutomaticLocation"
+            ]
+        }
+    },
+```
 
 How to build project using cmake?
 ```powershell
