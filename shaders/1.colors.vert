@@ -31,7 +31,7 @@ void specularLighting()
     vec3 reflectDir = reflect(-lightDir, norm);
 
     // specular lighting calculation
-    int shininess = 128; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
+    float shininess = 128.0; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
     vec3 specular = specularStrength * spec * lightColor;
 

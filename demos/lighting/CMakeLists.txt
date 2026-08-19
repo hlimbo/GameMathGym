@@ -42,6 +42,7 @@ if(EMSCRIPTEN)
   # Tell Emscripten to embed the "shaders" folder into virtual file system relative to where CMakeLists.txt is located
   # See: https://emscripten.org/docs/porting/files/packaging_files.html#modifying-file-locations-in-the-virtual-file-system
   target_link_options(${PROGRAM_NAME} PRIVATE 
-  "--embed-file=${CMAKE_CURRENT_SOURCE_DIR}/../../shaders@/shaders"
+  "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/../../shaders@/shaders"
+  "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/../../textures@/textures"
   )
 endif()

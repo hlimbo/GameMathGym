@@ -125,7 +125,7 @@ void LoadImageTexture() {
   // flip loaded texture on the y-axis (this is so that the texture image isn't upside down when viewing it in the window)
   stbi_set_flip_vertically_on_load(true);
   
-  data = stbi_load("3d_models/Raiden/Tex_0302_0.png", &width, &height, &nrChannels, 0);
+  data = stbi_load("textures/container.jpg", &width, &height, &nrChannels, 0);
   if (!data) {
     std::cout << "Failed to load texture" << std::endl;
     return;
