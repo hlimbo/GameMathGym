@@ -1,2 +1,9 @@
-# Force all files to use LF on checkout
+# Force all text files to use LF on checkout
 * text eol=lf
+
+# Keep all image files as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
