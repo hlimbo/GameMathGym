@@ -2,7 +2,7 @@
 * Visual Studio 2022
 * VCPKG
 * Ninja Build Generator
-* EMSDK for emscripten web builds
+* EMSDK 6.0.2 for emscripten web builds
   * Pyenv for windows
   * Python 3.10 or higher
 
@@ -77,6 +77,11 @@ How to add Developer Powershell (VS 2022) as a terminal option onto Visual Studi
         }
     },
 ```
+
+How to install EMSDK 6.0.2 for web builds?
+* Follow installation instructions from https://emscripten.org/docs/getting_started/downloads.html#sdk-download-and-install
+* For installation instead of typing in `latest` use `6.0.2` as it contains the emcc.exe file required to compile the project for web builds. Do this for all installation commands that contain the word `latest` in it.
+* For example `env install latest` should be `emsdk install 6.0.2`
 
 How to build project using cmake?
 ```powershell
