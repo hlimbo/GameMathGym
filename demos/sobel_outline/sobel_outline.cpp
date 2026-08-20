@@ -16,6 +16,9 @@
 #include "math_utils/vector3.h"
 
 #include "shapes/cube.h"
+#include "shapes/cylinder.h"
+#include "shapes/cone.h"
+#include "shapes/sphere.h"
 #include "utils/shader_utils.h"
 
 const char* WINDOW_NAME = "Sobel Outline Post-Processing Demo";
@@ -31,6 +34,14 @@ const std::string vertShaderSrc("shaders/cube.vert");
 const std::string fragShaderSrc("shaders/cube.frag");
 Shapes::Cube* cube = nullptr;
 MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -1.0f)));
+
+Shapes::Cone* cone = nullptr;
+Shapes::Cylinder* cylinder = nullptr;
+Shapes::Sphere* sphere = nullptr;
+
+MathUtils::Matrix4 coneMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(4.0f, 0.0f, -1.0f)));
+MathUtils::Matrix4 cylinderMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(-4.0f, 0.0f, -1.0f)));
+MathUtils::Matrix4 sphereMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(6.0f, 0.0f, -1.0f)));
 
 /* Framebuffer Object Variables */
 GLuint fbo;
@@ -57,6 +68,19 @@ unsigned int quadIndices[] = {
   3, 0, 1,
   3, 1, 2
 };
+
+/* Camera Parameters */
+const float ASPECT = (float)WIDTH / (float)HEIGHT;
+const float FOV_DEGREES = 90.0f;
+const float NEAR = 0.1f;
+const float FAR = 1000.0f;
+Core::Camera mainCamera((float)WIDTH, (float)HEIGHT, FOV_DEGREES, NEAR, FAR);
+
+MathUtils::Vector3 dirInputs;
+MathUtils::Vector3 mainCamPosition(0.0f, 0.0f, 5.0f);
+MathUtils::Vector3 camFront(0.0f, 0.0f, -1.0f);
+MathUtils::Vector3 camUp(0.0f, 1.0f, 0.0f);
+float speed = 2.0f;
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
@@ -139,7 +163,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glDeleteShader(fragShaderId);
   }
 
-  cube = new Shapes::Cube();
+  /* Shapes Creation */
+  {
+    cube = new Shapes::Cube();
+    cone = new Shapes::Cone(32, 4, 1.0f, 2.0f);
+    cylinder = new Shapes::Cylinder(8, 1.0f, 1.0f, 2.0f);
+    sphere = new Shapes::Sphere(32, 32, 1.0f);
+  }
 
   /* Create FBO Quad Buffer onto GPU */
   {
@@ -228,6 +258,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glUniform2f(glGetUniformLocation(fboShaderProgramId, "screenDimensions"), (GLfloat)(WIDTH), (GLfloat)(HEIGHT));
   }
 
+  /* Send in far and near clipping plane distances into shader program */
+  {
+    glUseProgram(fboShaderProgramId);
+    glUniform1f(glGetUniformLocation(fboShaderProgramId, "far"), FAR);
+    glUniform1f(glGetUniformLocation(fboShaderProgramId, "near"), NEAR);
+  }
+
   /* obtain keyboard inputs from SDL */
   keyStates = SDL_GetKeyboardState(NULL);
 
@@ -248,18 +285,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event* event) {
   return SDL_APP_CONTINUE;
 }
 
-
-const float ASPECT = (float)WIDTH / (float)HEIGHT;
-const float FOV_DEGREES = 90.0f;
-const float NEAR = 0.1f;
-const float FAR = 1000.0f;
-Core::Camera mainCamera((float)WIDTH, (float)HEIGHT, FOV_DEGREES, NEAR, FAR);
-
-MathUtils::Vector3 dirInputs;
-MathUtils::Vector3 mainCamPosition(0.0f, 0.0f, 5.0f);
-MathUtils::Vector3 camFront(0.0f, 0.0f, -1.0f);
-MathUtils::Vector3 camUp(0.0f, 1.0f, 0.0f);
-float speed = 2.0f;
 // measured in milliseconds
 Uint64 currentTime, lastTime = 0;
 
@@ -372,6 +397,21 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     if (cube != nullptr) {
       cube->Draw();
     }
+
+    if (cone != nullptr) {
+      glUniformMatrix4fv(modelLoc, 1, GL_FALSE, coneMat.cells);
+      cone->Draw();
+    }
+
+    if (cylinder != nullptr) {
+      glUniformMatrix4fv(modelLoc, 1, GL_FALSE, cylinderMat.cells);
+      cylinder->Draw();
+    }
+
+    if (sphere != nullptr) {
+      glUniformMatrix4fv(modelLoc, 1, GL_FALSE, sphereMat.cells);
+      sphere->Draw();
+    }
   }
 
   /* Render Second Pass which renders the textures created in the FBO projected onto the quad */
@@ -408,6 +448,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
   delete cube;
+  delete cylinder;
+  delete cone;
+  delete sphere;
   
   if (glContext) {
     SDL_GL_DestroyContext(glContext);

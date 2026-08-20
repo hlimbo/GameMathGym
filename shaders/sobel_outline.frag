@@ -6,6 +6,10 @@ uniform sampler2D sceneColor;
 uniform sampler2D sceneNormal;
 uniform sampler2D sceneDepth;
 
+// perspective matrix camera parameters
+uniform float far;
+uniform float near;
+
 uniform vec2 screenDimensions;
 
 // https://www.vertexfragment.com/ramblings/unity-postprocessing-sobel-outline/
@@ -25,10 +29,6 @@ vec4 SobelSample(sampler2D tex, vec2 uv, vec3 offset)
 // takes in a depth value that is read from the depth texture buffer which ranges between 0 to 1
 float LinearizeDepth(float depth)
 {
-  // assume far and near clip distances
-  float far = 100.0;
-  float near = 0.1;
-
   // convert to NDC range [-1, to 1]
   float z = depth * 2.0 - 1.0;
   // convert from NDC space to View space
@@ -87,11 +87,11 @@ float SobelSampleDepth(sampler2D depthTex, vec2 uv, vec3 offset)
 vec3 calcSobelNormal(vec3 color, vec3 offset)
 {
   // Parameters to tune
-  vec4 outlineColor = vec4(1.0, 1.0, 1.0, 1.0);
+  vec4 outlineColor = vec4(0.0, 0.0, 0.0, 1.0);
   // used to increase or decrease outline thickness strength
   float outlineNormalMultiplier = 10.0;
   // used to remove noise artifacts from the outline
-  float outlineNormalBias = 2.0;
+  float outlineNormalBias = 4.0;
 
   /* Uses the normals obtained by rendering a 3d scene onto an fbo and projecting the normal texture onto a quad */
   vec4 sobelNormalVec = SobelSample(sceneNormal, TexCoord, offset);
@@ -111,11 +111,12 @@ vec3 calcSobelNormal(vec3 color, vec3 offset)
 vec3 calcSobelDepth(vec3 color, vec3 offset)
 {
   // Parameters to tune
-  vec4 outlineColor = vec4(0.0, 1.0, 0.0, 1.0);
+  // Observation: If I set alpha value to something low, the shadowing effect this shader has becomes more subtle
+  vec4 outlineColor = vec4(0.0, 0.0, 0.0, 1.0);
   // used to increase or decrease outline thickness strength
-  float outlineDepthMultiplier = 10.0;
+  float outlineDepthMultiplier = 4.0;
   // used to remove noise artifacts from the outline
-  float outlineDepthBias = 1.0;
+  float outlineDepthBias = 2.0;
 
   /* Uses the depth values obtained by rendering a 3d scene onto an fbo and projecting the depth values onto a quad */
   float sobelDepth = SobelSampleDepth(sceneDepth, TexCoord, offset);
@@ -124,15 +125,15 @@ vec3 calcSobelDepth(vec3 color, vec3 offset)
 
   // modulate outline color based on transparency
   vec3 outlineBlendColor = mix(color, outlineColor.rgb, outlineColor.a);
-  
   vec3 finalColor = mix(color, outlineBlendColor, sobelDepth);
+
   return finalColor;
 }
 
 vec3 calcSobelCombined(vec3 color, vec3 offset)
 {
 // Parameters to tune
-  vec4 outlineColor = vec4(1.0, 1.0, 1.0, 1.0);
+  vec4 outlineColor = vec4(0.0, 0.0, 0.0, 1.0);
   // used to increase or decrease outline thickness strength
   float outlineNormalMultiplier = 10.0;
   // used to remove noise artifacts from the outline
@@ -152,10 +153,11 @@ vec3 calcSobelCombined(vec3 color, vec3 offset)
 
   /* Uses the depth values obtained by rendering a 3d scene onto an fbo and projecting the depth values onto a quad */
   float sobelDepth = SobelSampleDepth(sceneDepth, TexCoord, offset);
-  sobelDepth = clamp(sobelDepth, 0.0, 1.0);
   // fine tune sobel based on multiplier and bias parameters
   sobelDepth = pow(sobelDepth * outlineDepthMultiplier, outlineDepthBias);
 
+
+  outlineColor.a = smoothstep(0.0, 1.0, max(sobelDepth, sobelNormal));
   float sobelCombined = clamp(max(sobelDepth, sobelNormal), 0.0, 1.0);
   
   // modulate outline color based on transparency
@@ -166,12 +168,13 @@ vec3 calcSobelCombined(vec3 color, vec3 offset)
 
 void main()
 {
-  float outLineThickness = 2.0;
+  float outLineThickness = 0.5;
   vec3 offset = vec3(1.0 / screenDimensions.x, 1.0 / screenDimensions.y, 0.0) * outLineThickness;
   vec3 color = texture(sceneColor, TexCoord).rgb;
 
-  // vec3 finalColor = calcSobelNormal(color, offset);
+
+  vec3 finalColor = calcSobelNormal(color, offset);
   // vec3 finalColor = calcSobelDepth(color, offset);
-  vec3 finalColor = calcSobelCombined(color, offset);
+  // vec3 finalColor = calcSobelCombined(color, offset);
   FragColor = vec4(finalColor, 1.0);
 }

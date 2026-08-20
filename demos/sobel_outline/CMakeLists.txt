@@ -8,6 +8,10 @@ target_sources(
     "../../math_utils/matrix4.cpp"
     "../../math_utils/vector3.cpp"
     "../../shapes/cube.cpp"
+    "../../shapes/sphere.cpp"
+    "../../shapes/cone.cpp"
+    "../../shapes/cylinder.cpp"
+    "../../shapes/shape_utils.cpp"
     "../../utils/shader_utils.cpp"
     "../../utils/texture_utils.cpp"
     sobel_outline.cpp
