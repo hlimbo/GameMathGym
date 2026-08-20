@@ -17,9 +17,8 @@
 
 #include "shapes/cube.h"
 #include "utils/shader_utils.h"
-#include "utils/texture_utils.h"
 
-const char* WINDOW_NAME = "Framebuffers Demo";
+const char* WINDOW_NAME = "Sobel Outline Post-Processing Demo";
 SDL_Window* win = NULL;
 SDL_GLContext glContext;
 const int WIDTH = 1280;
@@ -30,29 +29,33 @@ const bool* keyStates = nullptr;
 GLuint cubeShaderProgramId;
 const std::string vertShaderSrc("shaders/cube.vert");
 const std::string fragShaderSrc("shaders/cube.frag");
-const std::string vertShaderSrc2("shaders/framebuffers_demo.vert");
-const std::string fragShaderSrc2("shaders/framebuffers_demo.frag");
 Shapes::Cube* cube = nullptr;
 MathUtils::Matrix4 modelMat(MathUtils::makeTranslationMatrix(MathUtils::Vector3(0.0f, 0.0f, -1.0f)));
 
-/* Framebuffer Variables */
+/* Framebuffer Object Variables */
 GLuint fbo;
-GLuint texture;
-GLuint depthStencilTexture;
 GLuint fboShaderProgramId;
-GLuint quadVAO, quadVBO;
+GLuint fboColorTexture, fboNormalTexture, fboDepthTexture;
+const std::string vertShaderSrc2("shaders/sobel_outline.vert");
+const std::string fragShaderSrc2("shaders/sobel_outline.frag");
+GLuint quadVAO;
+GLuint quadVBO;
+GLuint quadEBO;
 
-// Contains Positions and texCoords
-// Positions are in 2D NDC coordinates
-// texCoords are the UV coordinates ranging between 0 to 1 for both the U and V axes.
+// position followed by texCoords
+// position is a 2d coordinate in Normalized Device Coordinates
+// texCoords is 2D in UV coordinates which represents the texture units used to paint the quad
 float quadVertices[] = {
-  -1.0f, 1.0f, 0.0f, 1.0f,
-  -1.0f, -1.0f, 0.0f, 0.0f,
-  1.0f, -1.0f, 1.0f, 0.0f,
-  
-  -1.0f, 1.0f, 0.0f, 1.0f,
-  1.0f, -1.0f, 1.0f, 0.0f,
-  1.0f, 1.0f, 1.0f, 1.0f,
+  -1.0f, 1.0f, 0.0f, 1.0f,  // top-left
+  -1.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+  1.0f, -1.0f, 1.0f, 0.0f, // bottom-right
+  1.0f, 1.0f, 1.0f, 1.0f, // top-right
+};
+
+// counter-clockwise direction so it reamains visible
+unsigned int quadIndices[] = {
+  3, 0, 1,
+  3, 1, 2
 };
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
@@ -138,6 +141,75 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
   cube = new Shapes::Cube();
 
+  /* Create FBO Quad Buffer onto GPU */
+  {
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glGenBuffers(1, &quadEBO);
+
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), &quadIndices, GL_STATIC_DRAW);
+
+    GLsizei quadStride = sizeof(float) * 4;
+    // location = 0, vertex position
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, quadStride, (void*)0);
+    // location = 1, uv texture coordinate
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, quadStride, (void*)(2 * sizeof(float)));
+
+    glBindVertexArray(0);
+  }
+
+  
+
+  /* Create Framebuffer */
+  {
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    glGenTextures(1, &fboColorTexture);
+    glGenTextures(1, &fboNormalTexture);
+    glGenTextures(1, &fboDepthTexture);
+
+    // color texture attachment
+    glBindTexture(GL_TEXTURE_2D, fboColorTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboColorTexture, 0);
+
+    // normals texture attachment
+    glBindTexture(GL_TEXTURE_2D, fboNormalTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, fboNormalTexture, 0);
+
+    // depth texture attachment
+    glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, WIDTH, HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
+
+    // write to the color and normal texture attachments which would be made available in the fragment shader glsl code
+    GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+
+    GLenum framebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (framebufferStatus != GL_FRAMEBUFFER_COMPLETE) {
+      std::cout << "framebuffer not complete: " << std::hex << framebufferStatus << "\n";
+    }
+
+    // bind back to default framebuffer 0
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
   /* obtain keyboard inputs from SDL */
   keyStates = SDL_GetKeyboardState(NULL);
 
@@ -145,71 +217,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   glEnable(GL_DEPTH_TEST);
   // discards triangles facing away from camera
   glEnable(GL_CULL_FACE);
-
-  // draw as wireframe -- uncomment this line to verify its rendering the fbo on top of the camera
-  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-
-  /* Create Quad Buffers */
-  {
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-
-    GLsizei strideSize = 4 * sizeof(float);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, strideSize, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, strideSize, (void*)(2 * sizeof(float)));
-  }
-
-
-  /* Creating a framebuffer */
-  {
-    glGenFramebuffers(1, &fbo);
-    // this binds read and write operations to fbo - rendering logic is done offscreen
-    // fbo ID = 0 is the default framebuffer that OpenGL comes with when you create an opengl context for the first time.
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    /* 
-      For a framebuffer to be complete it needs:
-      1. Attach at least one buffer (could be color, depth, or stencil buffer)
-      2. Have at least one color attachment
-      3. All attachments should be complete
-      4. Each buffer should have same number of samples
-    */
-
-    // Doing a Texture Attachment to FBO
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    // allocates information about the texture
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // attach texture to fbo
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-
-    // Do a Depth and Stencil Attachment to FBO
-    // 24 bits represent depth information and 8 bits represent stencil information
-    glGenTextures(1, &depthStencilTexture);
-    glBindTexture(GL_TEXTURE_2D, depthStencilTexture);
-    glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT, 0,
-      GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL
-    );
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthStencilTexture, 0);
-
-    // verify if framebuffer is complete
-    GLenum framebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (framebufferStatus != GL_FRAMEBUFFER_COMPLETE) {
-      std::cout << "framebuffer not complete!" << std::hex << framebufferStatus << "\n";
-    }
-
-    // bind back to the main framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  }
 
   return SDL_APP_CONTINUE;
 }
@@ -245,7 +252,8 @@ float yaw = -90.0f, pitch = 0.0f;
 bool isFirstMouse = true;
 float mouseSensitivity = 0.025f;
 SDL_AppResult SDL_AppIterate(void *appstate) {
-currentTime = SDL_GetTicks();
+  currentTime = SDL_GetTicks();
+  
   if (lastTime == 0) {
     lastTime = currentTime;
   }
@@ -323,46 +331,62 @@ currentTime = SDL_GetTicks();
   mainCamera.setViewMatrix(newViewMat);
 
 
-  /* First Render Pass */
+  /* Render First Pass onto FBO which renders the scene offscreen */
+  {
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    // render background solid color
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
 
-  // bind framebuffer and draw scene to the fbo
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-  glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glEnable(GL_DEPTH_TEST);
+    glUseProgram(cubeShaderProgramId);
 
-  glUseProgram(cubeShaderProgramId);
+    auto viewMat = mainCamera.getViewMatrix();
+    auto projMat = mainCamera.getProjectionMatrix();
 
-  auto viewMat = mainCamera.getViewMatrix();
-  auto projMat = mainCamera.getProjectionMatrix();
+    GLint modelLoc = glGetUniformLocation(cubeShaderProgramId, "model");
+    GLint viewLoc = glGetUniformLocation(cubeShaderProgramId, "view");
+    GLint projLoc = glGetUniformLocation(cubeShaderProgramId, "projection");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelMat.cells);
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
 
-  GLint modelLoc = glGetUniformLocation(cubeShaderProgramId, "model");
-  GLint viewLoc = glGetUniformLocation(cubeShaderProgramId, "view");
-  GLint projLoc = glGetUniformLocation(cubeShaderProgramId, "projection");
-  glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelMat.cells);
-  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
-  glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
-
-  if (cube != nullptr) {
-    cube->Draw();
+    if (cube != nullptr) {
+      cube->Draw();
+    }
   }
 
-  /* Second Pass */
+  /* Render Second Pass which renders the textures created in the FBO projected onto the quad */
+  {
+    // bind back to default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // disable depth test to ensure quad doesn't get discarded
+    glDisable(GL_DEPTH_TEST);
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    glUseProgram(fboShaderProgramId);
 
-  // bind back to the main framebuffer
-  // and draw a quad plane with the attached framebuffer color texture
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  // disable depth test so screen space quad isn't discarded due to depth test
-  glDisable(GL_DEPTH_TEST);
-  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
+    // Set each texture unit in the shader to be the color, normal, and depth textures
+    // color texture will be set to texture unit 0, normal texture will be set to texture unit 1, and depth texture will be set to texture unit 2
+    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneColor"), 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, fboColorTexture);
 
-  glUseProgram(fboShaderProgramId);
-  glBindVertexArray(quadVAO);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneNormal"), 1);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, fboNormalTexture);
 
-  glBindVertexArray(0);
+    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneDepth"), 2);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
+
+    // draw the quad that will have the color and normal textures projected onto it
+    glBindVertexArray(quadVAO);
+    glDrawElements(GL_TRIANGLES, sizeof(quadIndices) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+  }
+
 
 
   SDL_GL_SwapWindow(win);
