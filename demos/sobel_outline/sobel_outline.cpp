@@ -165,8 +165,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glBindVertexArray(0);
   }
 
-  
-
   /* Create Framebuffer */
   {
     glGenFramebuffers(1, &fbo);
@@ -188,6 +186,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // clamp UV textures to 0 to 1 when they either underflow or overflow
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, fboNormalTexture, 0);
 
     // depth texture attachment
@@ -195,6 +196,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, WIDTH, HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // clamp UV textures to 0 to 1 when they either underflow or overflow
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
 
     // write to the color and normal texture attachments which would be made available in the fragment shader glsl code
@@ -208,6 +212,20 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     // bind back to default framebuffer 0
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
+  /* assign texture unit slots for the shader program that will project its color, normal, depth texture info onto a quad */
+  {
+    glUseProgram(fboShaderProgramId);
+    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneColor"), 0);
+    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneNormal"), 1);
+    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneDepth"), 2);
+  }
+
+  /* Send in screen width and height into shader program */
+  {
+    glUseProgram(fboShaderProgramId);
+    glUniform2f(glGetUniformLocation(fboShaderProgramId, "screenDimensions"), (GLfloat)(WIDTH), (GLfloat)(HEIGHT));
   }
 
   /* obtain keyboard inputs from SDL */
@@ -367,17 +385,13 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     
     glUseProgram(fboShaderProgramId);
 
-    // Set each texture unit in the shader to be the color, normal, and depth textures
-    // color texture will be set to texture unit 0, normal texture will be set to texture unit 1, and depth texture will be set to texture unit 2
-    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneColor"), 0);
+    // Activate Each Texture  for fboShaderProgramId to use in the fragment shader by activating a texture unit slot and binding it to it
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, fboColorTexture);
 
-    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneNormal"), 1);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, fboNormalTexture);
 
-    glUniform1i(glGetUniformLocation(fboShaderProgramId, "sceneDepth"), 2);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
 
@@ -386,8 +400,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     glDrawElements(GL_TRIANGLES, sizeof(quadIndices) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
   }
-
-
 
   SDL_GL_SwapWindow(win);
 
