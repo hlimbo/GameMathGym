@@ -1,4 +1,5 @@
 #ifndef CAMERA_H
+#define CAMERA_H
 #include <memory>
 
 /* Forward Declarations */
@@ -51,4 +52,4 @@ namespace Core {
   };
 }
 
-#endif CAMERA_H
+#endif // CAMERA_H

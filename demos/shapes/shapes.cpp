@@ -152,7 +152,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   // discards triangles facing away from camera
   glEnable(GL_CULL_FACE);
   // Enable Wireframe mode for both front and back faces
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   std::cout << "sizeof vector3 " << sizeof(MathUtils::Vector3) << std::endl;
 

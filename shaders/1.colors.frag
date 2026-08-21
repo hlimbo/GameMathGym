@@ -52,7 +52,7 @@ void halfLambertLighting()
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
 
-    float diff = pow(dot(norm, lightDir) * 0.5 + 0.5, 2);
+    float diff = pow(dot(norm, lightDir) * 0.5 + 0.5, 2.0);
     vec3 diffuse = diff * lightColor;
     vec3 result = diffuse * VertexColor.rgb;
     FragColor = vec4(result, 1.0);
@@ -74,7 +74,7 @@ void specularLighting()
     vec3 reflectDir = reflect(-lightDir, norm);
 
     // specular lighting calculation
-    int shininess = 32; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
+    float shininess = 32.0; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
     vec3 specular = specularStrength * spec * lightColor;
 
@@ -95,15 +95,15 @@ void bandedLighting()
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
     // float light = max(0.0, dot(norm, lightDir));
-    float light = pow(dot(norm, lightDir) * 0.5 + 0.5, 2);
+    float light = pow(dot(norm, lightDir) * 0.5 + 0.5, 2.0);
 
     // the closer lightSteps is to 256, the less light the object gets
     // the further away lightSteps is from 256, the more light the object receives
     float lightSteps = 64.0;
-    float lightBandsMultiplier = lightSteps / 256;
-    float lightBandsAdditive = lightSteps / 2;
+    float lightBandsMultiplier = lightSteps / 256.0;
+    float lightBandsAdditive = lightSteps / 2.0;
 
-    float bandedLight = (floor((light*256+lightBandsAdditive)/lightSteps)) * lightBandsMultiplier;
+    float bandedLight = (floor((light*256.0+lightBandsAdditive)/lightSteps)) * lightBandsMultiplier;
 
     vec3 litModel = bandedLight * VertexColor.rgb;
     vec3 finalColor = litModel * lightColor;
@@ -115,7 +115,7 @@ void bandedShading()
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
     // float NdotL = max(dot(norm, lightDir), 0.0);
-    float NdotL = pow(dot(norm, lightDir) * 0.5 + 0.5, 2);
+    float NdotL = pow(dot(norm, lightDir) * 0.5 + 0.5, 2.0);
 
     // manual stepping of light intensity
     // float intensity;
@@ -153,7 +153,7 @@ void ToonRampStyle()
     // 1st arg expects the vector to point from the light source towards the fragment position which is why it's negated
     vec3 reflectDir = reflect(-lightDir, norm);
 
-    int shininess = 32; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
+    float shininess = 32.0; // shininess of the highlight - the higher the number the more it reflects the light instead of scattering it all around and makes the highlight smaller
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
     vec3 specular = specularStrength * spec * lightColor;
     
@@ -170,6 +170,6 @@ void main()
     // halfLambertLighting();
     // lambertLighting();
     //bandedLighting();
-    // bandedShading();
-    ToonRampStyle();
+    bandedShading();
+    // ToonRampStyle();
 }

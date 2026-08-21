@@ -55,7 +55,7 @@ if (DEMOS_FEATURE_INDEX GREATER -1)
   endif()
 
   ### DEMO Projects to add ###
-  add_subdirectory("demos/3d_model")
+  # add_subdirectory("demos/3d_model")
   add_subdirectory("demos/draw_triangle")
   add_subdirectory("demos/imgui_sample")
   add_subdirectory("demos/textures")

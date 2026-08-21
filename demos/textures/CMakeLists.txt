@@ -34,6 +34,7 @@ if(EMSCRIPTEN)
   # See: https://emscripten.org/docs/porting/files/packaging_files.html#modifying-file-locations-in-the-virtual-file-system
   target_link_options(${PROGRAM_NAME} PRIVATE 
     "--embed-file=${CMAKE_CURRENT_SOURCE_DIR}/../../shaders@/shaders"
-    "--embed-file=${CMAKE_CURRENT_SOURCE_DIR}/../../3d_models@/3d_models"
+    # "--embed-file=${CMAKE_CURRENT_SOURCE_DIR}/../../3d_models@/3d_models"
+    "--embed-file=${CMAKE_CURRENT_SOURCE_DIR}/../../textures@/textures"
   )    
 endif()
