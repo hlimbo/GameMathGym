@@ -21,6 +21,7 @@ vec4 SobelSample(sampler2D tex, vec2 uv, vec3 offset)
   vec4 pixelUp = texture(tex, uv + offset.zy);
   vec4 pixelDown = texture(tex, uv - offset.zy);
 
+  // Similar to Manhattan Distance Formula: https://www.geeksforgeeks.org/data-science/manhattan-distance/
   vec4 res = abs(pixelLeft - pixelCenter) + abs(pixelRight - pixelCenter) + abs(pixelUp - pixelCenter) + abs(pixelDown - pixelCenter);
   return res;
 }

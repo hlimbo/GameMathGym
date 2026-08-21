@@ -49,10 +49,10 @@ GLuint ShaderUtils::LoadAndCreateShaderSource(const std::string& filePath, GLenu
   glShaderSource(shaderId, 3, shaderCodeArr, NULL);
   glCompileShader(shaderId);
 
-  std::cout << "Shader Code Loaded: " << filePath << "\n";
-  std::cout << versionHeader << "\n";
-  std::cout << glslPrecision << "\n";
-  std::cout << shaderSourceCode << "\n";
+  // std::cout << "Shader Code Loaded: " << filePath << "\n";
+  // std::cout << versionHeader << "\n";
+  // std::cout << glslPrecision << "\n";
+  // std::cout << shaderSourceCode << "\n";
 
   return shaderId;
 }
