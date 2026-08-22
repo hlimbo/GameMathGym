@@ -134,7 +134,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   glEnable(GL_CULL_FACE);
 
   // wireframe mode
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   return SDL_APP_CONTINUE;
 }
@@ -212,7 +212,7 @@ currentTime = SDL_GetTicks();
     float deg2Rad = (MathUtils::PI / 180.0f);
     MathUtils::Vector3 front(
       std::cos(deg2Rad * yaw) * std::cos(deg2Rad * pitch),
-      std::sin(deg2Rad * pitch),
+      std::sin(deg2Rad * -pitch),
       std::sin(deg2Rad * yaw) * std::cos(deg2Rad * pitch)
     );
     front.normalize();
@@ -248,34 +248,59 @@ currentTime = SDL_GetTicks();
   mainCamera.setViewMatrix(newViewMat);
 
   // render background solid color
-  glEnable(GL_DEPTH_TEST);
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-  glUseProgram(cubeShaderProgramId);
 
   auto viewMat = mainCamera.getViewMatrix();
   auto projMat = mainCamera.getProjectionMatrix();
 
-  GLint modelLoc = glGetUniformLocation(cubeShaderProgramId, "model");
-  GLint viewLoc = glGetUniformLocation(cubeShaderProgramId, "view");
-  GLint projLoc = glGetUniformLocation(cubeShaderProgramId, "projection");
-  glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelMat.cells);
-  glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
-  glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
+  GLuint modelLoc;
+  GLuint viewLoc;
+  GLuint projLoc;
 
-  if (cube != nullptr) {
-    cube->Draw();
+  /* Render Quad containing endless grid */
+  {
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    // This is enabled to get the grid to render on the quad properly
+    glEnable(GL_BLEND);
+    // Final Color = fragColor.rgb * fragColor.a + FrameBufferColor.rgb * (1 - FragColor.a);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUseProgram(endlessGridShaderProgramId);
+    
+    viewLoc = glGetUniformLocation(endlessGridShaderProgramId, "view");
+    projLoc = glGetUniformLocation(endlessGridShaderProgramId, "projection");
+    GLuint camWorldPosLoc = glGetUniformLocation(endlessGridShaderProgramId, "camWorldPos");
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
+    glUniform3f(camWorldPosLoc, mainCamPosition.x, mainCamPosition.y, mainCamPosition.z);
+
+    glBindVertexArray(endlessGridVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
   }
 
-  // render quad in NDC space
-  glDisable(GL_DEPTH_TEST);
-  glUseProgram(endlessGridShaderProgramId);
-  glBindVertexArray(endlessGridVAO);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
-  glBindVertexArray(0);
 
+  /* Render Scene with 1 Cube */
+  {
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    glUseProgram(cubeShaderProgramId);
+
+    modelLoc = glGetUniformLocation(cubeShaderProgramId, "model");
+    viewLoc = glGetUniformLocation(cubeShaderProgramId, "view");
+    projLoc = glGetUniformLocation(cubeShaderProgramId, "projection");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelMat.cells);
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMat.cells);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMat.cells);
+
+    if (cube != nullptr) {
+      cube->Draw();
+    }
+  }
 
   SDL_GL_SwapWindow(win);
 

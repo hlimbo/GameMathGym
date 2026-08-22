@@ -187,7 +187,7 @@ currentTime = SDL_GetTicks();
     float deg2Rad = (MathUtils::PI / 180.0f);
     MathUtils::Vector3 front(
       std::cos(deg2Rad * yaw) * std::cos(deg2Rad * pitch),
-      std::sin(deg2Rad * pitch),
+      std::sin(deg2Rad * -pitch),
       std::sin(deg2Rad * yaw) * std::cos(deg2Rad * pitch)
     );
     front.normalize();
