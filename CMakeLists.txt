@@ -78,6 +78,7 @@ if (UNIT_TEST_FEATURE_INDEX GREATER -1)
 
   add_subdirectory("demos/gtest_sample")
   add_subdirectory("math_utils")
+  add_subdirectory("collision_geometry")
 endif()
 
 
