@@ -9,7 +9,7 @@ uniform float gridCellSize = 0.025;
 uniform vec3 camWorldPos;
 uniform float gridMinPixelsBetweenCells = 2.0;
 uniform vec4 gridColorThin = vec4(0.5, 0.5, 0.5, 1.0);
-uniform vec4 gridColorThick = vec4(0.0, 0.0, 0.0, 1.0);
+uniform vec4 gridColorThick = vec4(0.75, 0.75, 0.75, 1.0);
 
 const float lineDerivativeThickness = 4.0;
 
@@ -65,21 +65,42 @@ void main()
 
   float LOD_fade = fract(LOD);
 
-  vec4 Color;
-  // IMPROVEMENT: can probably use a chain of step functions to remove the branching here.
-  // This code decides which color to use when rendering the line
-  // The alpha channel decides if a line should be fully rendered or not
-  if (Lod2a > 0.0) {
-    Color = gridColorThick;
-    Color.a *= Lod2a;
-  } else if (Lod1a > 0.0) {
-    Color = mix(gridColorThick, gridColorThin, LOD_fade);
-    Color.a *= Lod1a;
-  } else {
-    Color = gridColorThin;
-    // If you don't invert LOD_fade here, you will see a circular pattern emerge which reveals where the next LOD starts and ends
-    Color.a *= (Lod0a * (1.0 - LOD_fade));
-  }
+  // Equivalent to doing if Lod2a > 0, then else if Lod2a > 0, then else default statement
+  // Why avoid if else branching? because on GPUs it processes math equations faster than branching
+  float isLod2a = (1.0 - step(Lod2a, 0.0));
+  float isLod1a = (1.0 - step(Lod1a, 0.0));
+  float isLod0a = (1.0 - step(Lod0a, 0.0));
+  
+  float isLod1aExclusive = (1.0 - isLod2a) * isLod1a;
+  float isLod0aExclusive = (1.0 - isLod2a) * (1.0 - isLod1a) * isLod0a;
+
+  float redChannel = 
+    isLod2a * gridColorThick.r +
+    isLod1aExclusive * mix(gridColorThick.r, gridColorThin.r, LOD_fade) +
+    isLod0aExclusive * gridColorThin.r;
+
+  float greenChannel = 
+    isLod2a * gridColorThick.g +
+    isLod1aExclusive * mix(gridColorThick.g, gridColorThin.g, LOD_fade) +
+    isLod0aExclusive * gridColorThin.g;
+
+  float blueChannel =
+    isLod2a * gridColorThick.b +
+    isLod1aExclusive * mix(gridColorThick.b, gridColorThin.b, LOD_fade) +
+    isLod0aExclusive * gridColorThin.b;
+
+  // LOD_fade is inverted to prevent circular pattern which reveals where the next LOD starts and ends
+  float alphaChannel =
+    isLod2a * Lod2a +
+    isLod1aExclusive * Lod1a +
+    isLod0aExclusive * (Lod0a * (1.0 - LOD_fade));
+
+  vec4 Color = vec4(
+    redChannel,
+    greenChannel,
+    blueChannel,
+    alphaChannel
+  );
 
   // The further away the grid lines are in a perspective camera, the lower the alpha value gets. This gives us a fading out effect of the grid the further away it is from the camera
   float OpacityFalloff = (1.0 - clamp(length(QuadWorldPos.xz - camWorldPos.xz) / gridSize, 0.0, 1.0));
