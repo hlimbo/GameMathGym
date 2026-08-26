@@ -1,3 +1,15 @@
+# Showcase
+* Sobel Line Detection using Normal and Depth Maps FBO for the Fragment Shader
+![Sobel Line Detection Normal and Depth Shader](screenshots/SobelOutlineDemoDepthAndNormalFBO.gif)
+
+* Endless Grid Demo Topdown View (uses derivatives and log base 10 to compute this shader. Special Thanks goes to OGLDev for the youtube tutorial I used to follow along. I modified the shader code to fit the needs of the game engine)
+![Endless Grid Demo Topdown View](screenshots/EndlessGridDemoTopdownView.gif)
+
+
+
+* Inverted Hull (Add outline to sphere) + Cel Shading + Half Lambert Lighting
+![Cel Shading Lighting Demo](screenshots/LightingDemoAndInvertedHullAndCelShading.gif)
+
 # Software Dependencies List
 * Visual Studio 2022
 * VCPKG
