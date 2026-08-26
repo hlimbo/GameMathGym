@@ -6,15 +6,6 @@
 ### Endless Grid Demo Topdown View (uses derivatives and log base 10 to compute this shader. Special Thanks goes to OGLDev for the youtube tutorial I used to follow along. I modified the shader code to fit the needs of the game engine)
 ![Endless Grid Demo Topdown View](screenshots/EndlessGridDemoTopdownView.gif)
 
-### Endless Grid Demo 3D View
-<video src="screenshots/EndlessGridDemo.mp4" controls width="100%" muted autoplay loop>
- Your browser does not support the video tag.
-</video>
-
-
-
-
-
 
 ### Inverted Hull (Add outline to sphere) + Cel Shading + Half Lambert Lighting
 ![Cel Shading Lighting Demo](screenshots/LightingDemoAndInvertedHullAndCelShading.gif)
