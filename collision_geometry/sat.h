@@ -2,6 +2,7 @@
 #define SAT_H
 
 #include <vector>
+#include <cstdint>
 
 /*
   Separating Axis Theorem
@@ -14,8 +15,11 @@ namespace CollisionGeometry {
   /*
     returns list of normal unit vectors
   */
-  std::vector<MathUtils::Vector3> FindAllNormalAxes(const std::vector<MathUtils::Vector3>& vertices);
+  std::vector<MathUtils::Vector3> CalculateFaceNormalAxes(const std::vector<MathUtils::Vector3>& vertices, const std::vector<uint32_t>& indices);
   
+
+  std::vector<MathUtils::Vector3> CalculateEdgeDirectionAxes(const std::vector<MathUtils::Vector3>& vertices, const std::vector<uint32_t>& indices);
+
   /*
     returns true if 2 shapes overlap using 1 common axis that is a unit vector, false otherwise
   */
@@ -26,7 +30,7 @@ namespace CollisionGeometry {
   */
   bool CheckShapesOverlapAllAxesSAT(const std::vector<MathUtils::Vector3>& v1, const std::vector<MathUtils::Vector3>& v2, const std::vector<MathUtils::Vector3>& axes);
 
-  bool CheckShapesOverlapSAT(const std::vector<MathUtils::Vector3>& v1, const std::vector<MathUtils::Vector3>& v2);
+  bool CheckShapesOverlapSAT(const std::vector<MathUtils::Vector3>& v1, const std::vector<MathUtils::Vector3>& v2, const std::vector<uint32_t>& i1, const std::vector<uint32_t>& i2);
 }
 
 

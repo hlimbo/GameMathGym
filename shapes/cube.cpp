@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include "cube.h"
+#include "math_utils/vector3.h"
 
 // 24 vertices cube to support lighting and to support adding different colors on each side of the cube
 Shapes::Cube::Cube() :
@@ -146,23 +147,23 @@ Shapes::Cube::Cube() :
   cubeIndices {
     // front face
     1, 0, 2,
-    3, 1, 2,
+    1, 2, 3,
 
     // Back Face
     4, 5, 6,
     6, 5, 7,
 
     // Left Face
-    8, 9, 11,
+    11, 8, 9,
     10, 8, 11,
 
     // Right Face
-    13, 12, 14,
+    12, 14, 13,
     15, 13, 14,
 
     // Top Face
     19, 18, 16,
-    19, 16, 17,
+    17, 19, 16,
 
     // Bot Face
     20, 22, 23,
@@ -209,4 +210,25 @@ void Shapes::Cube::Draw()
   glBindVertexArray(VAO);
   glDrawElements(GL_TRIANGLES, sizeof(cubeIndices) / sizeof(uint32_t), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
+}
+
+std::vector<MathUtils::Vector3> Shapes::Cube::GetVertices() const
+{
+  std::vector<MathUtils::Vector3> vertices;
+  for (int i = 0; i < Shapes::Cube::VERTEX_COUNT; ++i) {
+    vertices.push_back(cubeVertices[i].position);
+  }
+
+  return vertices;
+}
+
+std::vector<uint32_t> Shapes::Cube::GetIndices() const
+{
+  std::vector<uint32_t> indices;
+
+  for (int i = 0; i < Shapes::Cube::INDICES_COUNT; ++i) {
+    indices.push_back(cubeIndices[i]);
+  }
+
+  return indices;
 }

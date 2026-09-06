@@ -34,6 +34,12 @@ Vector3 MathUtils::operator*(float scalar, const Vector3& rhs) {
   return rhs * scalar;
 }
 
+std::ostream &MathUtils::operator<<(std::ostream &os, const Vector3 &v)
+{
+  os << "Vector3(" << v.x << "," << v.y << "," << v.z << ")";
+  return os;
+}
+
 Vector3 Vector3::operator*=(const float scalar) {
   x *= scalar;
   y *= scalar;
@@ -52,6 +58,12 @@ Vector3 Vector3::operator/=(const float scalar) {
   y /= scalar;
   z /= scalar;
   return *this;
+}
+
+bool MathUtils::Vector3::operator==(const Vector3 &rhs) const
+{
+  Vector3 diff(x - rhs.x, y - rhs.y, z - rhs.z);
+  return diff.x <= MathUtils::VECTOR3_TOLERANCE && diff.y <= MathUtils::VECTOR3_TOLERANCE && diff.z <= MathUtils::VECTOR3_TOLERANCE;
 }
 
 float Vector3::dot(const Vector3& rhs) const {

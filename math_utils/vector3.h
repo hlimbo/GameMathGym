@@ -1,7 +1,12 @@
 #ifndef VECTOR3_H
 #define VECTOR3_H
 
+#include <iostream>
+
 namespace MathUtils {
+  // Due to floating point errors, this will be used in operator== function to approximate equality to the nearest thousandths place
+  constexpr float VECTOR3_TOLERANCE = 0.001f;
+
   struct Vector3 {
     float x, y, z;
 
@@ -20,8 +25,13 @@ namespace MathUtils {
     Vector3 operator*=(const float scalar);
     Vector3 operator/=(const float scalar);
 
+
+    bool operator==(const Vector3& rhs) const;
+
     // support for multiplying on left side
     friend Vector3 operator*(float scalar, const Vector3& rhs);
+
+    friend std::ostream& operator<<(std::ostream& os, const Vector3& v);
 
     float dot(const Vector3& rhs) const;
     Vector3 cross(const Vector3& rhs) const;
@@ -31,9 +41,11 @@ namespace MathUtils {
     float sqrMagnitude() const;
     void normalize();
     Vector3 normalized() const;
+
   };
 
   Vector3 operator*(float scalar, const Vector3& rhs);
+  std::ostream& operator<<(std::ostream& os, const Vector3& v);
 
   /*
     - converts SDL3 screen space coordinates that range for the following dimensions:
